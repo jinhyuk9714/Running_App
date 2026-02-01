@@ -192,12 +192,12 @@ com.runningapp
 - [x] 주차별 진행 로직 (목표 달성 시 자동 주차 진행)
 - [x] 주차별 스케줄 API
 
-### Phase 4: 마무리
+### Phase 4: 마무리 ✅
 - [x] 예외 처리 통합
 - [x] API 문서화 (Swagger)
 - [x] 테스트 코드
-- [ ] Docker 배포 설정
-- [ ] CI/CD (GitHub Actions)
+- [x] Docker 배포 설정 (Dockerfile, docker-compose)
+- [x] CI/CD (GitHub Actions)
 
 ### 추가 구현 ✅
 - [x] 레벨 업 로직 (LevelCalculator)
@@ -215,7 +215,7 @@ com.runningapp
 | **예외 처리** | @RestControllerAdvice, 커스텀 예외 |
 | **문서화** | Swagger/OpenAPI, 상세 주석 |
 | **테스트** | MockMvc 통합 테스트 (Auth, Activity, Challenge, Plan) |
-| **배포** | Docker, CI/CD (예정) |
+| **배포** | Docker, GitHub Actions CI |
 
 ---
 

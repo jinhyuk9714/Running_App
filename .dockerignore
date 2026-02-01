@@ -1,0 +1,21 @@
+# Git
+.git
+.gitignore
+
+# Build output
+build/
+
+# IDE
+.idea
+*.iml
+.vscode
+
+# Docs (optional - exclude to reduce image build context)
+# docs/
+
+# OS
+.DS_Store
+
+# Test (Docker build 시 테스트 제외로 이미 적용되어 있으나, context에서 제외하여 복사량 감소)
+# src/test는 빌드에 필요할 수 있음 - bootJar는 main만 포함하므로 test 제외해도 됨
+# 실제로 -x test로 테스트는 스킵하므로 src 전체 복사해도 됨

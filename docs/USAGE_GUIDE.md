@@ -58,7 +58,24 @@ cd Running_App
 - 기본 포트: **8080**
 - 로그에 `Started RunningAppApplication` 출력 시 정상 기동
 
-### 2.4 접속 확인
+### 2.4 Docker로 실행
+
+```bash
+# 빌드 및 실행 (PostgreSQL 포함)
+docker compose up -d
+
+# 로그 확인
+docker compose logs -f app
+
+# 종료
+docker compose down
+```
+
+- 앱: http://localhost:8080
+- PostgreSQL: localhost:5432 (DB: runningdb, User: running, Password: running123)
+- `docker profile` 사용 시 PostgreSQL 연결
+
+### 2.5 접속 확인
 
 | URL | 설명 |
 |-----|------|
@@ -330,7 +347,27 @@ export JWT_SECRET=your-production-secret-key-min-256-bits
 
 ---
 
-## 6. 문제 해결
+## 6. CI/CD
+
+### GitHub Actions
+
+- **트리거**: `main`, `develop` 브랜치 push 또는 PR 시
+- **작업**:
+  1. JDK 17 설정, Gradle 캐시
+  2. `./gradlew build` 실행 (테스트 포함)
+  3. 빌드 산출물 업로드
+  4. Docker 이미지 빌드 검증
+
+- 워크플로우: `.github/workflows/ci.yml`
+
+---
+
+## 7. 문제 해결
+
+### Docker 빌드 실패
+
+- `gradle-wrapper.jar` 누락 시: `./gradlew wrapper` 실행 후 재시도
+- Gradle 의존성 다운로드 실패 시: 네트워크 확인, `--no-daemon` 옵션 사용
 
 ### 포트 8080 사용 중
 

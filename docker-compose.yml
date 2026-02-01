@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: running-app-db
+    environment:
+      POSTGRES_DB: runningdb
+      POSTGRES_USER: running
+      POSTGRES_PASSWORD: running123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U running -d runningdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: running-app
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/runningdb
+      SPRING_DATASOURCE_USERNAME: running
+      SPRING_DATASOURCE_PASSWORD: running123
+      JWT_SECRET: running-app-secret-key-for-jwt-token-generation-minimum-256-bits
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

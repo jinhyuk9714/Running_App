@@ -1,0 +1,25 @@
+# Docker 환경용 설정 (PostgreSQL)
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/runningdb}
+    username: ${SPRING_DATASOURCE_USERNAME:running}
+    password: ${SPRING_DATASOURCE_PASSWORD:running123}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        default_schema: public
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+  h2:
+    console:
+      enabled: false
+
+jwt:
+  secret: ${JWT_SECRET:running-app-secret-key-for-jwt-token-generation-minimum-256-bits}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000}

@@ -24,8 +24,11 @@
 # 빌드
 ./gradlew build
 
-# 실행
+# 실행 (H2 인메모리 DB)
 ./gradlew bootRun
+
+# Docker (PostgreSQL)
+docker compose up -d
 ```
 
 ## API 문서
