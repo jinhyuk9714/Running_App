@@ -1,0 +1,38 @@
+# Spring Boot 설정
+# - datasource: H2 인메모리 DB (개발용, 재시작 시 초기화)
+# - JWT secret: 프로덕션에서는 환경변수로 주입 권장
+spring:
+  application:
+    name: running-app
+  datasource:
+    url: jdbc:h2:mem:runningdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+    hikari:
+      maximum-pool-size: 5
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        default_schema: public
+    database-platform: org.hibernate.dialect.H2Dialect
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+# JWT 설정
+jwt:
+  secret: running-app-secret-key-for-jwt-token-generation-minimum-256-bits
+  expiration-ms: 86400000  # 24시간
+
+# Swagger
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
