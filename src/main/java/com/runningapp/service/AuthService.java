@@ -3,6 +3,7 @@ package com.runningapp.service;
 import com.runningapp.domain.User;
 import com.runningapp.dto.auth.AuthResponse;
 import com.runningapp.dto.auth.LoginRequest;
+import com.runningapp.dto.auth.ProfileUpdateRequest;
 import com.runningapp.dto.auth.SignupRequest;
 import com.runningapp.exception.BadRequestException;
 import com.runningapp.repository.UserRepository;
@@ -61,6 +62,23 @@ public class AuthService {
 
         String token = jwtUtil.generateToken(user.getId(), user.getEmail());
         return buildAuthResponse(token, user);
+    }
+
+    @Transactional
+    public AuthResponse.UserInfo updateProfile(Long userId, ProfileUpdateRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BadRequestException("사용자를 찾을 수 없습니다"));
+
+        user.updateProfile(request.getNickname(), request.getWeight(), request.getHeight());
+        userRepository.save(user);
+
+        return AuthResponse.UserInfo.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .nickname(user.getNickname())
+                .level(user.getLevel())
+                .totalDistance(user.getTotalDistance())
+                .build();
     }
 
     public AuthResponse.UserInfo getMe(Long userId) {

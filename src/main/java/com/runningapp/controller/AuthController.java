@@ -2,6 +2,7 @@ package com.runningapp.controller;
 
 import com.runningapp.dto.auth.AuthResponse;
 import com.runningapp.dto.auth.LoginRequest;
+import com.runningapp.dto.auth.ProfileUpdateRequest;
 import com.runningapp.dto.auth.SignupRequest;
 import com.runningapp.security.AuthenticationPrincipal;
 import com.runningapp.service.AuthService;
@@ -51,6 +52,20 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @Operation(summary = "프로필 수정", description = "닉네임, 체중, 신장 수정. 전송한 필드만 수정됨.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "수정 성공"),
+            @ApiResponse(responseCode = "400", description = "유효성 검증 실패"),
+            @ApiResponse(responseCode = "403", description = "인증 필요")
+    })
+    @PatchMapping("/me")
+    public ResponseEntity<AuthResponse.UserInfo> updateProfile(
+            @AuthenticationPrincipal Long userId,
+            @Valid @RequestBody ProfileUpdateRequest request) {
+        AuthResponse.UserInfo user = authService.updateProfile(userId, request);
+        return ResponseEntity.ok(user);
+    }
+
     @Operation(summary = "내 정보 조회", description = "JWT 토큰으로 인증된 사용자 정보 조회. Authorization 헤더에 Bearer 토큰 필요.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공"),
@@ -58,7 +73,7 @@ public class AuthController {
     })
     @GetMapping("/me")
     public ResponseEntity<AuthResponse.UserInfo> getMe(
-            @AuthenticationPrincipal Long userId) {  // JWT에서 추출한 userId
+            @AuthenticationPrincipal Long userId) {
         AuthResponse.UserInfo user = authService.getMe(userId);
         return ResponseEntity.ok(user);
     }

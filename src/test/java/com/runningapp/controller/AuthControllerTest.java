@@ -151,4 +151,34 @@ class AuthControllerTest {
                     .andExpect(status().isForbidden());
         }
     }
+
+    @Nested
+    @DisplayName("PATCH /api/auth/me")
+    class UpdateProfile {
+
+        @Test
+        @DisplayName("프로필 수정 성공")
+        void updateProfile_success() throws Exception {
+            mockMvc.perform(post("/api/auth/signup")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"email\":\"profile@test.com\",\"password\":\"password123\",\"nickname\":\"프로필\"}"));
+            ResultActions loginResult = mockMvc.perform(post("/api/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"email\":\"profile@test.com\",\"password\":\"password123\"}"))
+                    .andExpect(status().isOk());
+            String token = TestUtils.extractAccessToken(loginResult);
+
+            mockMvc.perform(patch("/api/auth/me")
+                            .header("Authorization", "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"nickname\":\"수정된닉네임\",\"weight\":70.0,\"height\":175.0}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.nickname").value("수정된닉네임"));
+
+            mockMvc.perform(get("/api/auth/me")
+                            .header("Authorization", "Bearer " + token))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.nickname").value("수정된닉네임"));
+        }
+    }
 }

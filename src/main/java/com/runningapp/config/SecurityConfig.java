@@ -4,6 +4,7 @@ import com.runningapp.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -38,6 +39,9 @@ public class SecurityConfig {
                 // URL별 접근 권한 설정 (순서 중요 - 먼저 매칭된 규칙 적용)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/signup", "/api/auth/login").permitAll()  // 인증 불필요
+                        .requestMatchers(HttpMethod.GET, "/api/challenges").permitAll()  // 진행중 챌린지 목록 공개
+                        .requestMatchers(HttpMethod.GET, "/api/plans").permitAll()  // 플랜 목록 공개
+                        .requestMatchers(HttpMethod.GET, "/api/plans/*/schedule").permitAll()  // 주차별 스케줄 공개
                         .requestMatchers("/swagger-ui/**", "/api-docs/**", "/h2-console/**").permitAll()
                         .requestMatchers("/api/**").authenticated()  // 나머지 API는 인증 필수
                         .anyRequest().authenticated()

@@ -62,4 +62,16 @@ public class User {
     public void addDistance(double distance) {
         this.totalDistance += distance;
     }
+
+    /** 레벨 업데이트 (totalDistance 기반) */
+    public void updateLevel() {
+        this.level = com.runningapp.util.LevelCalculator.calculateLevel(this.totalDistance);
+    }
+
+    /** 프로필 수정 (null이 아닌 필드만 반영) */
+    public void updateProfile(String nickname, Double weight, Double height) {
+        if (nickname != null) this.nickname = nickname;
+        if (weight != null) this.weight = weight;
+        if (height != null) this.height = height;
+    }
 }

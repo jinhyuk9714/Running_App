@@ -31,6 +31,8 @@ public class RunningActivityService {
 
     private final RunningActivityRepository activityRepository;
     private final UserRepository userRepository;
+    private final ChallengeService challengeService;
+    private final TrainingPlanService trainingPlanService;
 
     @Transactional
     public ActivityResponse create(Long userId, ActivityRequest request) {
@@ -50,9 +52,16 @@ public class RunningActivityService {
 
         activity = activityRepository.save(activity);
 
-        // 사용자 누적 거리 업데이트
+        // 사용자 누적 거리 업데이트 + 레벨 재계산
         user.addDistance(request.getDistance());
+        user.updateLevel();
         userRepository.save(user);
+
+        // 챌린지 진행률 업데이트 (참여중인 챌린지)
+        challengeService.updateProgressOnActivity(userId, request.getDistance(), request.getStartedAt().toLocalDate());
+
+        // 플랜 주차 진행 체크 (진행중인 플랜)
+        trainingPlanService.updatePlanProgressOnActivity(userId, request.getDistance(), request.getStartedAt());
 
         return ActivityResponse.from(activity);
     }
@@ -106,6 +115,7 @@ public class RunningActivityService {
         User user = activity.getUser();
         user.addDistance(-oldDistance);
         user.addDistance(newDistance);
+        user.updateLevel();
         userRepository.save(user);
 
         return ActivityResponse.from(activity);
@@ -122,6 +132,7 @@ public class RunningActivityService {
 
         User user = activity.getUser();
         user.addDistance(-activity.getDistance());
+        user.updateLevel();
         userRepository.save(user);
 
         activityRepository.delete(activity);

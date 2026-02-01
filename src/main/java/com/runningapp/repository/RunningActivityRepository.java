@@ -27,4 +27,10 @@ public interface RunningActivityRepository extends JpaRepository<RunningActivity
     Double sumDistanceByUserIdAndDateRange(@Param("userId") Long userId,
                                            @Param("start") LocalDateTime start,
                                            @Param("end") LocalDateTime end);
+
+    @Query("SELECT COUNT(a) FROM RunningActivity a WHERE a.user.id = :userId " +
+           "AND a.startedAt >= :start AND a.startedAt < :end")
+    long countByUserIdAndDateRange(@Param("userId") Long userId,
+                                   @Param("start") LocalDateTime start,
+                                   @Param("end") LocalDateTime end);
 }
