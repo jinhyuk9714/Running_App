@@ -15,7 +15,22 @@
 | `DEPLOY_USER`    | SSH 로그인 사용자 (예: `ubuntu`)  |                                        |
 | `DEPLOY_SSH_KEY` | `.pem` 파일 **전체 내용**         | `-----BEGIN ... END ...` 포함해서 복사 |
 
-- `DEPLOY_SSH_KEY`: 서버 접속용 **비공개 키** 전체를 붙여넣기 (줄바꿈 유지)
+**`DEPLOY_SSH_KEY` 넣는 방법**
+
+1. NCP 서버 접속할 때 쓰는 **비공개 키 파일**을 찾습니다. (예: `your-key.pem`, `running-app.pem`)
+2. **텍스트 에디터**로 그 파일을 엽니다. (VS Code, 메모장, Cursor 등)
+3. **처음부터 끝까지 전부** 선택해서 복사합니다.
+   - 반드시 `-----BEGIN ... PRIVATE KEY-----` 로 **시작**하고
+   - `-----END ... PRIVATE KEY-----` 로 **끝나야** 합니다.
+   - 그 사이 줄바꿈도 그대로 두고 복사합니다.
+4. GitHub → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
+5. **Name**: `DEPLOY_SSH_KEY`  
+   **Secret**: 방금 복사한 내용 **전체**를 붙여넣기 → **Add secret**
+
+- 터미널에서 복사하려면:
+  - macOS: `cat your-key.pem | pbcopy`
+  - Windows: `type your-key.pem | clip`
+  - Linux: `xclip -sel clip < your-key.pem` 또는 `cat your-key.pem` 후 출력 전체 복사
 
 ---
 
@@ -23,9 +38,24 @@
 
 NCP 서버에 SSH로 접속한 뒤 **아래 둘 중 하나**를 선택해 실행합니다.
 
-### 방법 A: 스크립트로 한 번에 설정 (권장)
+### 방법 A: 서버에서 한 번에 설정 (저장소 없이)
 
-서버에 이 저장소를 클론했거나 `scripts/setup-deploy-sudo.sh` 를 서버에 복사한 경우:
+서버에 SSH 접속한 뒤 **아래 명령만 순서대로** 실행합니다. (`ubuntu` 는 배포에 쓰는 사용자명으로 바꾸세요.)
+
+```bash
+# 배포 사용자명 (GitHub DEPLOY_USER 와 동일하게)
+DEPLOY_USER=ubuntu
+
+echo "${DEPLOY_USER} ALL=(ALL) NOPASSWD: /bin/systemctl restart running-app" | sudo tee /etc/sudoers.d/running-app-deploy
+sudo chmod 440 /etc/sudoers.d/running-app-deploy
+sudo visudo -c -f /etc/sudoers.d/running-app-deploy
+```
+
+- 성공하면 아무 메시지 없이 끝납니다. `visudo -c` 가 문법 오류 있으면 에러를 냅니다.
+
+### 방법 A-2: 저장소 클론 후 스크립트 실행
+
+서버에 이 저장소를 클론해 둔 경우에만 사용:
 
 ```bash
 # 1. SSH 접속 (로컬에서)
@@ -34,11 +64,9 @@ ssh -i your-key.pem ubuntu@<서버공인IP>
 # 2. 서버에서 (클론한 경우)
 cd Running_App && sudo bash scripts/setup-deploy-sudo.sh
 
-# 또는 사용자명 지정 (기본값: 현재 사용자)
+# 또는 사용자명 지정
 sudo bash scripts/setup-deploy-sudo.sh ubuntu
 ```
-
-- 스크립트는 `/etc/sudoers.d/running-app-deploy` 를 생성하고, 지정한 사용자가 `sudo systemctl restart running-app` 만 비밀번호 없이 실행하도록 설정합니다.
 
 ### 방법 B: 수동으로 visudo 편집
 
