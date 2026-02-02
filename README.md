@@ -84,6 +84,7 @@
 | 문서                                                 | 설명                             |
 | ---------------------------------------------------- | -------------------------------- |
 | [docs/DEPLOY_NCP.md](docs/DEPLOY_NCP.md)             | NCP(네이버 클라우드) 배포 가이드 |
+| [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md)             | **다음 단계**: GitHub Secrets + 서버 sudo (자동 배포) |
 | [docs/PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md) | 상세 기술·도메인 설명            |
 
 ---
