@@ -6,30 +6,33 @@
 
 ## 실서비스 (NCP 배포)
 
-| 구분           | URL                                            |
-| -------------- | ---------------------------------------------- |
-| **Swagger UI** | http://49.50.131.57:8080/swagger-ui/index.html |
-| **API**        | http://49.50.131.57:8080/api/...               |
+| 구분           | URL |
+| -------------- | --- |
+| **Swagger UI** | https://jinhyuk-portfolio1.shop/swagger-ui/index.html |
+| **API**        | https://jinhyuk-portfolio1.shop/api/... |
+| **Health**     | https://jinhyuk-portfolio1.shop/actuator/health |
 
 - 회원가입/로그인 후 Swagger 상단 **Authorize**에서 토큰 입력하면 인증 API 테스트 가능
-- Swagger 경로: 반드시 `/swagger-ui/index.html` 사용 (`/swagger-ui.html` 은 파일 다운로드될 수 있음)
+- `api.jinhyuk-portfolio1.shop` 도메인으로도 동일 접속 가능
 
 ### 배포·운영 (포트폴리오 요약)
 
-| 구분              | 내용                                            |
-| ----------------- | ----------------------------------------------- |
-| **인프라**        | NCP Server(VPC), Ubuntu, Public Subnet          |
-| **DB**            | NCP Cloud DB for PostgreSQL (VPC 내부 연동)     |
-| **네트워크**      | ACG로 SSH(22), 앱(8080), DB(5432) 접근 제어     |
-| **프로세스 관리** | systemd 서비스 등록 (재부팅 시 자동 기동)       |
-| **설정**          | Spring `prod` 프로파일, 환경 변수로 DB·JWT 주입 |
+| 구분              | 내용 |
+| ----------------- | ---- |
+| **인프라**        | NCP Server(VPC), Ubuntu, Public Subnet |
+| **DB**            | NCP Cloud DB for PostgreSQL (VPC 내부 연동) |
+| **네트워크**      | ACG: SSH(22), HTTP(80), HTTPS(443), 앱(8080), DB(5432) |
+| **프로세스 관리** | systemd 서비스 등록 (재부팅 시 자동 기동) |
+| **역방향 프록시** | Nginx (80/443 → 8080), Let's Encrypt HTTPS |
+| **CI/CD**        | GitHub Actions: `main` 푸시 시 JAR 빌드·배포·restart |
+| **설정**         | Spring `prod` 프로파일, 환경 변수로 DB·JWT 주입 |
 
 ---
 
 ## 기술 스택
 
 - **Java 17**, Spring Boot 3.3
-- **Spring Security** + JWT
+- **Spring Security** + JWT, **Spring Boot Actuator** (Health)
 - **Spring Data JPA** (H2 개발 / PostgreSQL 프로덕션)
 - **SpringDoc OpenAPI** (Swagger UI)
 - **Gradle** (Kotlin DSL)
@@ -81,11 +84,12 @@
 
 ## 문서
 
-| 문서                                                 | 설명                             |
-| ---------------------------------------------------- | -------------------------------- |
-| [docs/DEPLOY_NCP.md](docs/DEPLOY_NCP.md)             | NCP(네이버 클라우드) 배포 가이드 |
-| [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md)             | **다음 단계**: GitHub Secrets + 서버 sudo (자동 배포) |
-| [docs/PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md) | 상세 기술·도메인 설명            |
+| 문서 | 설명 |
+|------|------|
+| [docs/DEPLOY_NCP.md](docs/DEPLOY_NCP.md) | NCP 배포 가이드 (VPC, Server, DB, ACG, systemd) |
+| [docs/HTTPS_SETUP.md](docs/HTTPS_SETUP.md) | 도메인 HTTPS (Nginx + Let's Encrypt) |
+| [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md) | 자동 배포 설정 (GitHub Secrets, 서버 sudo) |
+| [docs/PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md) | 상세 기술·도메인 설명 |
 
 ---
 

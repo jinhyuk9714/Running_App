@@ -41,7 +41,12 @@ Running_App/
 ├── README.md
 ├── docs/
 │   ├── DEPLOY_NCP.md         # NCP 배포 가이드
+│   ├── HTTPS_SETUP.md        # 도메인 HTTPS (Nginx + Let's Encrypt)
+│   ├── NEXT_STEPS.md         # 자동 배포 설정 (GitHub Secrets, sudo)
 │   └── PROJECT_OVERVIEW.md   # 상세 설명서 (본 문서)
+├── scripts/
+│   ├── nginx-running-app.conf.example  # Nginx 역방향 프록시 예시
+│   └── setup-deploy-sudo.sh  # 서버 sudo 설정 스크립트
 └── src/
     ├── main/
     │   ├── java/com/runningapp/

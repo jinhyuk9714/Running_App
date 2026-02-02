@@ -1,0 +1,42 @@
+# Nginx 역방향 프록시 예시 (HTTPS + Spring Boot 8080)
+# 사용법:
+#   1. 도메인 DNS A 레코드를 서버 공인 IP로 연결
+#   2. 이 파일을 /etc/nginx/sites-available/running-app 로 복사 후 수정
+#   3. sudo ln -s /etc/nginx/sites-available/running-app /etc/nginx/sites-enabled/
+#   4. sudo certbot --nginx -d api.도메인.com  (인증서 발급 후 이 파일이 자동 수정됨)
+#   5. sudo nginx -t && sudo systemctl reload nginx
+
+# HTTP → HTTPS 리다이렉트 (Certbot 적용 후 활성화됨)
+# server {
+#     listen 80;
+#     server_name api.도메인.com;
+#     return 301 https://$server_name$request_uri;
+# }
+
+server {
+    listen 80;
+    server_name api.도메인.com;   # 실제 도메인으로 변경 (여러 개 시 공백으로 구분)
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+}
+
+# HTTPS (Certbot 실행 후 자동으로 이 블록이 추가·수정됨)
+# server {
+#     listen 443 ssl;
+#     server_name api.도메인.com;
+#     ssl_certificate /etc/letsencrypt/live/api.도메인.com/fullchain.pem;
+#     ssl_certificate_key /etc/letsencrypt/live/api.도메인.com/privkey.pem;
+#     location / {
+#         proxy_pass http://127.0.0.1:8080;
+#         ...
+#     }
+# }

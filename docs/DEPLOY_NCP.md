@@ -185,9 +185,9 @@ sudo systemctl status running-app
 
 ## 8. 접속 확인
 
-- **Swagger UI**: `http://<Server공인IP>:8080/swagger-ui/index.html`  
-  (`/swagger-ui.html` 은 파일 다운로드될 수 있으므로 `/swagger-ui/index.html` 사용)
-- **API**: `http://<Server공인IP>:8080/api/...`
+- **직접 접속 (IP:8080)**: `http://<Server공인IP>:8080/swagger-ui/index.html`, `http://<Server공인IP>:8080/actuator/health`
+- **도메인 + HTTPS 적용 시**: `https://<도메인>/swagger-ui/index.html`, `https://<도메인>/actuator/health` (상세는 [docs/HTTPS_SETUP.md](HTTPS_SETUP.md) 참고)
+- Swagger 경로는 `/swagger-ui/index.html` 사용 (`/swagger-ui.html` 은 파일 다운로드될 수 있음)
 
 ---
 
@@ -259,11 +259,25 @@ jwt:
 
 ## 13. 다음 단계: 도메인·HTTPS (선택)
 
-도메인을 연결하고 HTTPS를 쓰려면 서버에 **Nginx**를 두고 **Let’s Encrypt**로 인증서를 발급하는 방식을 많이 씁니다.
+도메인 연결 및 HTTPS 적용은 **[docs/HTTPS_SETUP.md](HTTPS_SETUP.md)** 에서 단계별로 안내합니다.
 
-1. **도메인 DNS**: 도메인 A 레코드를 서버 공인 IP로 연결
-2. **Nginx 설치**: `sudo apt install nginx`
-3. **역할**: Nginx가 80/443을 받고, 8080으로 프록시 (예: `proxy_pass http://127.0.0.1:8080`)
-4. **Certbot**: `sudo apt install certbot python3-certbot-nginx` 후 `sudo certbot --nginx -d api.도메인.com` 으로 인증서 발급·자동 갱신
+- **요약**: NCP ACG에 80/443 허용 → Nginx 설치 → `/etc/nginx/sites-available/running-app` 설정 → Certbot으로 Let's Encrypt 인증서 발급. IPv6 비활성화 서버는 `listen [::]:80` / `[::]:443` 주석 처리 필요.
+- **참고**: [Let’s Encrypt](https://letsencrypt.org/), [Certbot](https://certbot.eff.org/)
 
-자세한 절차는 [Let’s Encrypt](https://letsencrypt.org/) 및 Nginx 역방향 프록시 문서를 참고하면 됩니다.
+---
+
+## 14. 모니터링 (선택)
+
+### 14.1 Health 체크 (Actuator)
+
+- **URL**: `https://<도메인>/actuator/health` 또는 `http://<서버IP>:8080/actuator/health` (인증 불필요)
+- **용도**: 로드밸런서·모니터링 툴에서 주기적으로 호출해 서비스 상태 확인. `{"status":"UP"}` 이면 정상.
+- **로그 확인**: 서버에서 `journalctl -u running-app -f` 또는 앱 로그 파일(`logs/application.log`)로 에러 추적.
+
+### 14.2 NCP 서버 알람
+
+1. **NCP 콘솔** → **Services** → **Compute** → **Server** (VPC) → 해당 서버 선택
+2. **Monitoring** 탭 또는 **Alarm** 설정에서 **CPU 사용률**, **메모리 사용률** 등 조건 설정
+3. 조건 초과 시 **이메일/SMS** 알림 받도록 설정 (NCP 정책에 따라 가능 여부 확인)
+
+이렇게 설정해 두면 서버 과부하·다운 시 빠르게 대응할 수 있습니다.

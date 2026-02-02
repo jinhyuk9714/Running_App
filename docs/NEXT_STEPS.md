@@ -124,4 +124,4 @@ sudo systemctl status running-app
 ## 완료 후
 
 - 이후에는 **`main` 브랜치에 push**만 하면 CI가 JAR을 빌드하고 서버에 복사한 뒤 `systemctl restart running-app`을 실행합니다.
-- Health 확인: `http://<서버IP>:8080/actuator/health`
+- Health 확인: `https://<도메인>/actuator/health` 또는 `http://<서버IP>:8080/actuator/health`
