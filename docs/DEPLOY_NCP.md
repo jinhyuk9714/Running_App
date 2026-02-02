@@ -225,9 +225,45 @@ jwt:
 
 ---
 
-## 11. 참고 링크
+## 11. GitHub Actions 자동 배포 (선택)
+
+`main` 브랜치에 푸시하면 CI가 JAR을 빌드한 뒤 NCP 서버로 전송하고 `systemctl restart running-app` 으로 재시작합니다.
+
+### 11.1 GitHub Secrets 설정
+
+저장소 **Settings** → **Secrets and variables** → **Actions** 에서 다음 시크릿을 등록합니다.
+
+| 이름             | 설명                                                       |
+| ---------------- | ---------------------------------------------------------- |
+| `DEPLOY_SSH_KEY` | 서버 SSH 접속용 **비공개 키** 전체 내용 (`.pem` 파일 내용) |
+| `DEPLOY_HOST`    | 서버 공인 IP 또는 호스트명 (예: `49.50.131.57`)            |
+| `DEPLOY_USER`    | SSH 로그인 사용자 (예: `ubuntu`)                           |
+
+### 11.2 서버 측 사항
+
+- 배포 사용자(`ubuntu`)가 **비밀번호 없이** `sudo systemctl restart running-app` 실행 가능해야 합니다.  
+  예: `sudo visudo` → `ubuntu ALL=(ALL) NOPASSWD: /bin/systemctl restart running-app` 추가
+- JAR은 `~/app.jar` 로 덮어쓰며, systemd 서비스의 `ExecStart` 가 `/home/ubuntu/app.jar` 를 가리키는지 확인합니다.
+
+---
+
+## 12. 참고 링크
 
 - [NCP 콘솔](https://console.ncloud.com)
 - [Server(VPC) 가이드](https://guide.ncloud-docs.com/docs/server-vpc-overview)
 - [Cloud DB for PostgreSQL 가이드](https://guide.ncloud-docs.com/docs/clouddbforpostgresql-overview)
 - [ACG 가이드](https://guide.ncloud-docs.com/docs/server-acg-vpc)
+- [GitHub Actions - Encrypted secrets](https://docs.github.com/en/actions/security-guides/encrypted-secrets)
+
+---
+
+## 13. 다음 단계: 도메인·HTTPS (선택)
+
+도메인을 연결하고 HTTPS를 쓰려면 서버에 **Nginx**를 두고 **Let’s Encrypt**로 인증서를 발급하는 방식을 많이 씁니다.
+
+1. **도메인 DNS**: 도메인 A 레코드를 서버 공인 IP로 연결
+2. **Nginx 설치**: `sudo apt install nginx`
+3. **역할**: Nginx가 80/443을 받고, 8080으로 프록시 (예: `proxy_pass http://127.0.0.1:8080`)
+4. **Certbot**: `sudo apt install certbot python3-certbot-nginx` 후 `sudo certbot --nginx -d api.도메인.com` 으로 인증서 발급·자동 갱신
+
+자세한 절차는 [Let’s Encrypt](https://letsencrypt.org/) 및 Nginx 역방향 프록시 문서를 참고하면 됩니다.

@@ -47,6 +47,7 @@
 ```
 
 - **Swagger UI**: http://localhost:8080/swagger-ui/index.html
+- **Health**: http://localhost:8080/actuator/health (인증 없이 상태 확인)
 - **H2 콘솔**: http://localhost:8080/h2-console (JDBC URL: `jdbc:h2:mem:runningdb`)
 
 ---
@@ -64,6 +65,7 @@
 | 활동   | GET    | /api/activities/{id}        | 활동 상세             |
 | 활동   | PUT    | /api/activities/{id}        | 활동 수정             |
 | 활동   | DELETE | /api/activities/{id}        | 활동 삭제             |
+| 활동   | GET    | /api/activities/summary     | 주간·월간 요약        |
 | 활동   | GET    | /api/activities/stats       | 통계 (year, month)    |
 | 챌린지 | GET    | /api/challenges             | 진행중인 챌린지       |
 | 챌린지 | GET    | /api/challenges/recommended | 레벨 기반 추천        |

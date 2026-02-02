@@ -5,6 +5,8 @@ import com.runningapp.domain.User;
 import com.runningapp.dto.activity.ActivityRequest;
 import com.runningapp.dto.activity.ActivityResponse;
 import com.runningapp.dto.activity.ActivityStatsResponse;
+import com.runningapp.dto.activity.ActivitySummaryResponse;
+import com.runningapp.dto.activity.PeriodSummary;
 import com.runningapp.exception.NotFoundException;
 import com.runningapp.repository.RunningActivityRepository;
 import com.runningapp.repository.UserRepository;
@@ -16,6 +18,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -183,6 +187,68 @@ public class RunningActivityService {
         return ActivityStatsResponse.builder()
                 .totalDistance(totalDistance != null ? totalDistance : 0.0)
                 .totalCount(filtered.size())
+                .totalDuration(totalDuration)
+                .averagePace(avgPace)
+                .build();
+    }
+
+    /** 주간/월간 요약: 이번 주, 이번 달, 지난달 통계 (ISO 주: 월요일 시작) */
+    public ActivitySummaryResponse getSummary(Long userId) {
+        userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다"));
+
+        LocalDate today = LocalDate.now();
+
+        // 이번 주 (월요일 00:00 ~ 다음 월요일 00:00)
+        LocalDate weekStart = today.with(DayOfWeek.MONDAY);
+        LocalDate weekEnd = weekStart.plusWeeks(1);
+        PeriodSummary thisWeek = toPeriodSummary(
+                userId,
+                weekStart.atStartOfDay(),
+                weekEnd.atStartOfDay()
+        );
+
+        // 이번 달
+        LocalDate monthStart = today.withDayOfMonth(1);
+        LocalDate monthEnd = monthStart.plusMonths(1);
+        PeriodSummary thisMonth = toPeriodSummary(
+                userId,
+                monthStart.atStartOfDay(),
+                monthEnd.atStartOfDay()
+        );
+
+        // 지난달
+        LocalDate lastMonthStart = monthStart.minusMonths(1);
+        LocalDate lastMonthEnd = monthStart;
+        PeriodSummary lastMonth = toPeriodSummary(
+                userId,
+                lastMonthStart.atStartOfDay(),
+                lastMonthEnd.atStartOfDay()
+        );
+
+        return ActivitySummaryResponse.builder()
+                .thisWeek(thisWeek)
+                .thisMonth(thisMonth)
+                .lastMonth(lastMonth)
+                .build();
+    }
+
+    private PeriodSummary toPeriodSummary(Long userId, LocalDateTime start, LocalDateTime end) {
+        Double totalDistance = activityRepository.sumDistanceByUserIdAndDateRange(userId, start, end);
+        long count = activityRepository.countByUserIdAndDateRange(userId, start, end);
+        List<RunningActivity> list = activityRepository.findByUserIdAndStartedAtBetween(userId, start, end);
+
+        int totalDuration = list.stream().mapToInt(RunningActivity::getDuration).sum();
+        Integer avgPace = list.isEmpty() ? null
+                : (int) list.stream()
+                        .filter(a -> a.getAveragePace() != null)
+                        .mapToInt(RunningActivity::getAveragePace)
+                        .average()
+                        .orElse(0);
+
+        return PeriodSummary.builder()
+                .totalDistance(totalDistance != null ? totalDistance : 0.0)
+                .totalCount((int) count)
                 .totalDuration(totalDuration)
                 .averagePace(avgPace)
                 .build();

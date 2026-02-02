@@ -3,6 +3,7 @@ package com.runningapp.controller;
 import com.runningapp.dto.activity.ActivityRequest;
 import com.runningapp.dto.activity.ActivityResponse;
 import com.runningapp.dto.activity.ActivityStatsResponse;
+import com.runningapp.dto.activity.ActivitySummaryResponse;
 import com.runningapp.security.AuthenticationPrincipal;
 import com.runningapp.service.RunningActivityService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -101,6 +102,17 @@ public class RunningActivityController {
             @PathVariable Long id) {
         activityService.delete(userId, id);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "주간·월간 요약", description = "이번 주(월~일), 이번 달, 지난달 러닝 요약 통계를 한 번에 조회합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "403", description = "인증 필요")
+    })
+    @GetMapping("/summary")
+    public ResponseEntity<ActivitySummaryResponse> getSummary(@AuthenticationPrincipal Long userId) {
+        ActivitySummaryResponse summary = activityService.getSummary(userId);
+        return ResponseEntity.ok(summary);
     }
 
     @Operation(summary = "통계 조회", description = "러닝 통계를 조회합니다. year, month 미지정 시 전체 누적 통계. year만 지정 시 해당 연도, year+month 지정 시 해당 월 통계.")

@@ -28,7 +28,17 @@ spring:
 # JWT 설정
 jwt:
   secret: running-app-secret-key-for-jwt-token-generation-minimum-256-bits
-  expiration-ms: 86400000  # 24시간
+  expiration-ms: 86400000 # 24시간
+
+# Actuator: Health 체크 (배포/로드밸런서용)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: when_authorized # 인증 시에만 상세(DB 등) 노출
 
 # Swagger
 springdoc:

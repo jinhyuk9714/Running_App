@@ -33,4 +33,6 @@ public interface RunningActivityRepository extends JpaRepository<RunningActivity
     long countByUserIdAndDateRange(@Param("userId") Long userId,
                                    @Param("start") LocalDateTime start,
                                    @Param("end") LocalDateTime end);
+
+    List<RunningActivity> findByUserIdAndStartedAtBetween(Long userId, LocalDateTime start, LocalDateTime end);
 }
