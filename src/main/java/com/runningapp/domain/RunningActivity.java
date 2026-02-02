@@ -42,8 +42,8 @@ public class RunningActivity {
 
     private Integer calories;  // 예상 칼로리 소모
 
-    @JdbcTypeCode(SqlTypes.JSON)  // JSON으로 직렬화하여 DB에 저장 (H2: CLOB)
-    @Column(columnDefinition = "clob")
+    @JdbcTypeCode(SqlTypes.JSON)  // JSON 직렬화 저장 (H2: CLOB, PostgreSQL: jsonb)
+    @Column(columnDefinition = "text")  // H2/PostgreSQL 공통 (PostgreSQL은 text로 JSON 저장)
     private List<Map<String, Object>> route;  // GPS 경로: [{lat, lng, timestamp}, ...]
 
     @Column(name = "started_at", nullable = false)
