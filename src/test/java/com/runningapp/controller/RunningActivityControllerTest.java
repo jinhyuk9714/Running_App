@@ -2,6 +2,9 @@ package com.runningapp.controller;
 
 import com.runningapp.util.TestUtils;
 import org.junit.jupiter.api.BeforeEach;
+
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -270,6 +273,52 @@ class RunningActivityControllerTest {
         @DisplayName("인증 없이 통계 조회 시 403")
         void getStats_unauthorized_fail() throws Exception {
             mockMvc.perform(get("/api/activities/stats"))
+                    .andExpect(status().isForbidden());
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /api/activities/summary")
+    class GetSummary {
+
+        @Test
+        @DisplayName("주간·월간 요약 조회 성공")
+        void getSummary_success() throws Exception {
+            mockMvc.perform(get("/api/activities/summary")
+                            .header("Authorization", "Bearer " + authToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.thisWeek").exists())
+                    .andExpect(jsonPath("$.thisWeek.totalDistance").exists())
+                    .andExpect(jsonPath("$.thisWeek.totalCount").exists())
+                    .andExpect(jsonPath("$.thisWeek.totalDuration").exists())
+                    .andExpect(jsonPath("$.thisMonth").exists())
+                    .andExpect(jsonPath("$.thisMonth.totalDistance").exists())
+                    .andExpect(jsonPath("$.lastMonth").exists())
+                    .andExpect(jsonPath("$.lastMonth.totalDistance").exists());
+        }
+
+        @Test
+        @DisplayName("활동 저장 후 요약에 반영")
+        void getSummary_reflectsActivity() throws Exception {
+            String today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
+            String body = activityJson(5.0, 1500, 300, 250, today + "T07:00:00", null);
+            mockMvc.perform(post("/api/activities")
+                    .header("Authorization", "Bearer " + authToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(body));
+
+            mockMvc.perform(get("/api/activities/summary")
+                            .header("Authorization", "Bearer " + authToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.thisMonth.totalDistance").value(5.0))
+                    .andExpect(jsonPath("$.thisMonth.totalCount").value(1))
+                    .andExpect(jsonPath("$.thisMonth.totalDuration").value(1500));
+        }
+
+        @Test
+        @DisplayName("인증 없이 요약 조회 시 403")
+        void getSummary_unauthorized_fail() throws Exception {
+            mockMvc.perform(get("/api/activities/summary"))
                     .andExpect(status().isForbidden());
         }
     }
