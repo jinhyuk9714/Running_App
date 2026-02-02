@@ -44,7 +44,7 @@ NCP 서버에 SSH로 접속한 뒤 **아래 둘 중 하나**를 선택해 실행
 
 ```bash
 # 배포 사용자명 (GitHub DEPLOY_USER 와 동일하게)
-DEPLOY_USER=ubuntu
+DEPLOY_USER=root
 
 echo "${DEPLOY_USER} ALL=(ALL) NOPASSWD: /bin/systemctl restart running-app" | sudo tee /etc/sudoers.d/running-app-deploy
 sudo chmod 440 /etc/sudoers.d/running-app-deploy
@@ -103,6 +103,21 @@ sudo systemctl status running-app
 1. GitHub 저장소 → **Actions** 탭
 2. 방금 푸시한 워크플로우 실행이 보이면 **Deploy to NCP** job이 **성공**했는지 확인
 3. 실패 시 해당 job 로그에서 `DEPLOY_HOST`, `DEPLOY_SSH_KEY` 등이 올바른지 확인
+
+---
+
+## Permission denied (publickey) 나올 때
+
+`scp` / `ssh` 단계에서 **Permission denied (publickey)** 가 나오면 아래를 확인하세요.
+
+| 확인 | 내용 |
+|------|------|
+| **DEPLOY_USER** | 서버에 **그 키로 로그인 가능한 사용자**와 같아야 합니다. NCP Ubuntu는 보통 **ubuntu** 로 SSH 접속하고, root SSH는 비활성인 경우가 많습니다. |
+| **DEPLOY_SSH_KEY** | `.pem` **비공개 키 전체**가 들어가 있어야 합니다. 공개 키(.pub)가 아닌 **비공개 키**이고, `-----BEGIN ...` ~ `-----END ...` 까지 줄바꿈 포함해서 복사했는지 확인하세요. |
+| **서버 authorized_keys** | 해당 사용자(예: ubuntu)의 `~/.ssh/authorized_keys` 에 **이 .pem 키의 공개 키**가 등록되어 있어야 합니다. 로컬에서 `ssh-keygen -y -f your-key.pem` 으로 공개 키를 뽑아서 서버에 붙여 넣을 수 있습니다. |
+
+- **root** 로 배포하려면: 서버에서 root SSH 로그인이 허용되어 있고, root의 `~/.ssh/authorized_keys` 에 이 키의 공개 키가 있어야 합니다.
+- **ubuntu** 로 배포하려면: GitHub Secrets 의 **DEPLOY_USER** 를 `ubuntu` 로 두고, 서버의 `/home/ubuntu/.ssh/authorized_keys` 에 이 .pem 의 공개 키가 들어가 있어야 합니다.
 
 ---
 

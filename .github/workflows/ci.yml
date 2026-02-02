@@ -80,7 +80,7 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
         run: |
-          JAR=$(find . -maxdepth 3 -name "*.jar" -type f ! -path "./.git/*" | head -1)
+          JAR=$(find . -maxdepth 3 -name "*.jar" -type f ! -path "./.git/*" ! -name "*-plain.jar" | head -1)
           if [ -z "$JAR" ]; then echo "::error::JAR not found"; exit 1; fi
           echo "Using JAR: $JAR"
           scp -o StrictHostKeyChecking=no "$JAR" $DEPLOY_USER@$DEPLOY_HOST:~/app.jar
