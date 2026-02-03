@@ -6,26 +6,26 @@
 
 ## 실서비스 (NCP 배포)
 
-| 구분           | URL |
-| -------------- | --- |
+| 구분           | URL                                                   |
+| -------------- | ----------------------------------------------------- |
 | **Swagger UI** | https://jinhyuk-portfolio1.shop/swagger-ui/index.html |
-| **API**        | https://jinhyuk-portfolio1.shop/api/... |
-| **Health**     | https://jinhyuk-portfolio1.shop/actuator/health |
+| **API**        | https://jinhyuk-portfolio1.shop/api/...               |
+| **Health**     | https://jinhyuk-portfolio1.shop/actuator/health       |
 
 - 회원가입/로그인 후 Swagger 상단 **Authorize**에서 토큰 입력하면 인증 API 테스트 가능
 - `api.jinhyuk-portfolio1.shop` 도메인으로도 동일 접속 가능
 
 ### 배포·운영 (포트폴리오 요약)
 
-| 구분              | 내용 |
-| ----------------- | ---- |
-| **인프라**        | NCP Server(VPC), Ubuntu, Public Subnet |
-| **DB**            | NCP Cloud DB for PostgreSQL (VPC 내부 연동) |
+| 구분              | 내용                                                   |
+| ----------------- | ------------------------------------------------------ |
+| **인프라**        | NCP Server(VPC), Ubuntu, Public Subnet                 |
+| **DB**            | NCP Cloud DB for PostgreSQL (VPC 내부 연동)            |
 | **네트워크**      | ACG: SSH(22), HTTP(80), HTTPS(443), 앱(8080), DB(5432) |
-| **프로세스 관리** | systemd 서비스 등록 (재부팅 시 자동 기동) |
-| **역방향 프록시** | Nginx (80/443 → 8080), Let's Encrypt HTTPS |
-| **CI/CD**        | GitHub Actions: `main` 푸시 시 JAR 빌드·배포·restart |
-| **설정**         | Spring `prod` 프로파일, 환경 변수로 DB·JWT 주입 |
+| **프로세스 관리** | systemd 서비스 등록 (재부팅 시 자동 기동)              |
+| **역방향 프록시** | Nginx (80/443 → 8080), Let's Encrypt HTTPS             |
+| **CI/CD**         | GitHub Actions: `main` 푸시 시 JAR 빌드·배포·restart   |
+| **설정**          | Spring `prod` 프로파일, 환경 변수로 DB·JWT 주입        |
 
 ---
 
@@ -84,12 +84,12 @@
 
 ## 문서
 
-| 문서 | 설명 |
-|------|------|
-| [docs/DEPLOY_NCP.md](docs/DEPLOY_NCP.md) | NCP 배포 가이드 (VPC, Server, DB, ACG, systemd) |
-| [docs/HTTPS_SETUP.md](docs/HTTPS_SETUP.md) | 도메인 HTTPS (Nginx + Let's Encrypt) |
-| [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md) | 자동 배포 설정 (GitHub Secrets, 서버 sudo) |
-| [docs/PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md) | 상세 기술·도메인 설명 |
+| 문서                                                 | 설명                                            |
+| ---------------------------------------------------- | ----------------------------------------------- |
+| [docs/DEPLOY_NCP.md](docs/DEPLOY_NCP.md)             | NCP 배포 가이드 (VPC, Server, DB, ACG, systemd) |
+| [docs/HTTPS_SETUP.md](docs/HTTPS_SETUP.md)           | 도메인 HTTPS (Nginx + Let's Encrypt)            |
+| [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md)             | 자동 배포 설정 (GitHub Secrets, 서버 sudo)      |
+| [docs/PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md) | 상세 기술·도메인 설명                           |
 
 ---
 
@@ -99,6 +99,15 @@
 - **챌린지**: 거리/횟수 목표, 레벨별 추천 (6종 시드)
 - **트레이닝 플랜**: 5K/10K/하프마라톤 × 초/중/고급 (9종 시드)
 - **자동 진행**: 활동 저장 시 챌린지·플랜 진행률 자동 반영
+
+---
+
+## iOS 앱 (나이키 러닝 스타일)
+
+- **시작** → 실시간 GPS·지도 경로 표시 → **완료** 시 서버에 결과 저장
+- 저장 항목: 거리, 시간, 평균 페이스, 칼로리, 평균 심박수, 케이던스, GPS 경로(지도 표시)
+- **위치**: `ios/` — Xcode에서 새 iOS App 생성 후 `ios/RunningApp/Sources` 소스 참고
+- **상세**: [ios/README.md](ios/README.md)
 
 ---
 

@@ -42,6 +42,12 @@ public class RunningActivity {
 
     private Integer calories;  // 예상 칼로리 소모
 
+    @Column(name = "average_heart_rate")
+    private Integer averageHeartRate;  // 평균 심박수 (bpm)
+
+    @Column(name = "cadence")
+    private Integer cadence;  // 평균 케이던스 (steps/min, SPM)
+
     @JdbcTypeCode(SqlTypes.JSON)  // JSON 직렬화 저장 (H2: CLOB, PostgreSQL: jsonb)
     @Column(columnDefinition = "text")  // H2/PostgreSQL 공통 (PostgreSQL은 text로 JSON 저장)
     private List<Map<String, Object>> route;  // GPS 경로: [{lat, lng, timestamp}, ...]
@@ -62,11 +68,14 @@ public class RunningActivity {
 
     /** 엔티티 수정 (불변 객체 대신 업데이트 메서드로 변경 사항 반영) */
     public void update(Double distance, Integer duration, Integer averagePace, Integer calories,
-                       List<Map<String, Object>> route, LocalDateTime startedAt, String memo) {
+                       Integer averageHeartRate, Integer cadence, List<Map<String, Object>> route,
+                       LocalDateTime startedAt, String memo) {
         this.distance = distance;
         this.duration = duration;
         this.averagePace = averagePace;
         this.calories = calories;
+        this.averageHeartRate = averageHeartRate;
+        this.cadence = cadence;
         this.route = route;
         this.startedAt = startedAt;
         this.memo = memo;

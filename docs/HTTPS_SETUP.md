@@ -220,28 +220,28 @@ sudo certbot renew --dry-run
 
 ## 문제 해결
 
-| 증상 | 확인 |
-|------|------|
-| `http://jinhyuk-portfolio1.shop` 연결 안 됨 | ACG 80 포트 열림, `sudo nginx -t`, `sudo systemctl status nginx` |
-| **Nginx 시작 실패** (`Address family not supported`) | IPv6 비활성화 서버: `/etc/nginx/sites-available/default` 에서 `listen [::]:80` / `listen [::]:443` 앞에 `#` 추가 |
-| **443 포트 안 열림** (`ss` 에 :443 없음) | Nginx 설정에 `listen [::]:443 ssl` 이 있으면 `# listen [::]:443 ssl` 로 주석 처리 후 `sudo systemctl restart nginx` |
-| **Certbot 후 443 블록 없음** | 인증서는 발급됐으나 Nginx에 443 블록이 없을 수 있음. `docs/HTTPS_SETUP.md` 본문의 "443 블록 수동 추가" 예시대로 `/etc/nginx/sites-available/running-app` 에 HTTPS `server { listen 443 ssl; ... }` 블록 추가 (IPv6 listen 은 넣지 않음) |
-| 502 Bad Gateway | Spring Boot(8080) 실행 중인지: `sudo systemctl status running-app` |
-| Certbot 실패 | DNS 전파: `ping jinhyuk-portfolio1.shop` → 49.50.131.57 |
+| 증상                                                 | 확인                                                                                                                                                                                                                                    |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `http://jinhyuk-portfolio1.shop` 연결 안 됨          | ACG 80 포트 열림, `sudo nginx -t`, `sudo systemctl status nginx`                                                                                                                                                                        |
+| **Nginx 시작 실패** (`Address family not supported`) | IPv6 비활성화 서버: `/etc/nginx/sites-available/default` 에서 `listen [::]:80` / `listen [::]:443` 앞에 `#` 추가                                                                                                                        |
+| **443 포트 안 열림** (`ss` 에 :443 없음)             | Nginx 설정에 `listen [::]:443 ssl` 이 있으면 `# listen [::]:443 ssl` 로 주석 처리 후 `sudo systemctl restart nginx`                                                                                                                     |
+| **Certbot 후 443 블록 없음**                         | 인증서는 발급됐으나 Nginx에 443 블록이 없을 수 있음. `docs/HTTPS_SETUP.md` 본문의 "443 블록 수동 추가" 예시대로 `/etc/nginx/sites-available/running-app` 에 HTTPS `server { listen 443 ssl; ... }` 블록 추가 (IPv6 listen 은 넣지 않음) |
+| 502 Bad Gateway                                      | Spring Boot(8080) 실행 중인지: `sudo systemctl status running-app`                                                                                                                                                                      |
+| Certbot 실패                                         | DNS 전파: `ping jinhyuk-portfolio1.shop` → 49.50.131.57                                                                                                                                                                                 |
 
 ---
 
 ## 요약
 
-| 단계 | 할 일 |
-|------|------|
-| 1 | NCP ACG: 80, 443 Inbound 허용 |
-| 2 | 서버 SSH 접속 |
-| 3 | `apt install nginx` (IPv6 오류 시 default에서 `listen [::]:80` 주석 처리) |
-| 4 | `/etc/nginx/sites-available/running-app` 생성 (server_name에 루트·www·api 포함) → sites-enabled 링크 → `nginx -t` → `reload nginx` |
-| 5 | `http://jinhyuk-portfolio1.shop/actuator/health` 로 확인 |
-| 6 | `certbot --nginx -d jinhyuk-portfolio1.shop -d www.jinhyuk-portfolio1.shop -d api.jinhyuk-portfolio1.shop` |
-| 7 | 443 블록이 없으면 수동 추가 (listen 443 ssl만 사용, `[::]:443` 제외) → `restart nginx` |
-| 8 | `https://jinhyuk-portfolio1.shop/actuator/health` 로 확인 |
+| 단계 | 할 일                                                                                                                              |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | NCP ACG: 80, 443 Inbound 허용                                                                                                      |
+| 2    | 서버 SSH 접속                                                                                                                      |
+| 3    | `apt install nginx` (IPv6 오류 시 default에서 `listen [::]:80` 주석 처리)                                                          |
+| 4    | `/etc/nginx/sites-available/running-app` 생성 (server_name에 루트·www·api 포함) → sites-enabled 링크 → `nginx -t` → `reload nginx` |
+| 5    | `http://jinhyuk-portfolio1.shop/actuator/health` 로 확인                                                                           |
+| 6    | `certbot --nginx -d jinhyuk-portfolio1.shop -d www.jinhyuk-portfolio1.shop -d api.jinhyuk-portfolio1.shop`                         |
+| 7    | 443 블록이 없으면 수동 추가 (listen 443 ssl만 사용, `[::]:443` 제외) → `restart nginx`                                             |
+| 8    | `https://jinhyuk-portfolio1.shop/actuator/health` 로 확인                                                                          |
 
 완료 후 **포트 없이** `https://jinhyuk-portfolio1.shop` 또는 `https://api.jinhyuk-portfolio1.shop` 으로 API/Swagger 접속 가능합니다.

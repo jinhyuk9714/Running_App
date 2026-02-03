@@ -30,6 +30,10 @@ public class ActivityResponse {
     private Integer averagePace;
     @Schema(description = "칼로리")
     private Integer calories;
+    @Schema(description = "평균 심박수 (bpm)")
+    private Integer averageHeartRate;
+    @Schema(description = "평균 케이던스 (SPM)")
+    private Integer cadence;
     @Schema(description = "GPS 경로")
     private List<Map<String, Object>> route;
     @Schema(description = "시작 시간")
@@ -47,6 +51,8 @@ public class ActivityResponse {
                 .duration(activity.getDuration())
                 .averagePace(activity.getAveragePace())
                 .calories(activity.getCalories())
+                .averageHeartRate(activity.getAverageHeartRate())
+                .cadence(activity.getCadence())
                 .route(activity.getRoute())
                 .startedAt(activity.getStartedAt())
                 .memo(activity.getMemo())

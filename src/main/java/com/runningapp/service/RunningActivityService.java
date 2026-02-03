@@ -49,6 +49,8 @@ public class RunningActivityService {
                 .duration(request.getDuration())
                 .averagePace(request.getAveragePace())
                 .calories(request.getCalories())
+                .averageHeartRate(request.getAverageHeartRate())
+                .cadence(request.getCadence())
                 .route(request.getRoute())
                 .startedAt(request.getStartedAt())
                 .memo(request.getMemo())
@@ -111,6 +113,8 @@ public class RunningActivityService {
                 request.getDuration(),
                 request.getAveragePace(),
                 request.getCalories(),
+                request.getAverageHeartRate(),
+                request.getCadence(),
                 request.getRoute(),
                 request.getStartedAt(),
                 request.getMemo()

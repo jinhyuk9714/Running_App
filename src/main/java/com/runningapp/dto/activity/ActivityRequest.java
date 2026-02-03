@@ -40,6 +40,14 @@ public class ActivityRequest {
     @PositiveOrZero(message = "칼로리는 0 이상이어야 합니다")
     private Integer calories;
 
+    @Schema(description = "평균 심박수 (bpm)", example = "145")
+    @PositiveOrZero(message = "심박수는 0 이상이어야 합니다")
+    private Integer averageHeartRate;
+
+    @Schema(description = "평균 케이던스 (steps/min, SPM)", example = "170")
+    @PositiveOrZero(message = "케이던스는 0 이상이어야 합니다")
+    private Integer cadence;
+
     @Schema(description = "GPS 경로 [{lat, lng, timestamp}, ...]")
     private List<Map<String, Object>> route;
 

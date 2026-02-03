@@ -31,6 +31,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                // CORS는 WebMvcConfig에서 설정; Security가 preflight(OPTIONS) 응답 허용
+                .cors(cors -> {})
                 // REST API이므로 CSRF 비활성화 (세션 기반이 아닐 때)
                 .csrf(AbstractHttpConfigurer::disable)
                 // Stateless: 세션 생성 안 함 (JWT 사용)
