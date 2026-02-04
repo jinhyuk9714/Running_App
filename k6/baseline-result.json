@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-02-04T12:50:46.489Z",
+  "phase": "BASELINE",
+  "testDuration": "62s",
+  "totalRequests": 4206,
+  "maxVUs": 50,
+  "responseTime": {
+    "avg": "21.94ms",
+    "p95": "93.96ms",
+    "max": "193.95ms"
+  },
+  "errorRate": "0.00%",
+  "throughput": "67.92 req/s",
+  "endpoints": {
+    "login": "88.04ms",
+    "activities": "6.28ms",
+    "summary": "7.43ms",
+    "challenges": "4.34ms",
+    "plans": "3.87ms"
+  }
+}
