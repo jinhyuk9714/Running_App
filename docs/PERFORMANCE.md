@@ -17,6 +17,7 @@ Nike Run Club 스타일 러닝 앱의 Spring Boot 백엔드 성능을 단계적�
 | Phase 5 | Index Optimization | 쿼리 실행 계획 최적화 |
 | Phase 6 | Test Coverage | 62% 커버리지, 90개 테스트 |
 | Phase 7 | Docker Optimization | 이미지 크기 47% 감소 |
+| Phase 8 | CI/CD Pipeline | 빌드 캐싱, 병렬 실행 |
 
 ---
 
@@ -700,6 +701,116 @@ docker-compose up --build
 
 ---
 
+## Phase 8: CI/CD 파이프라인 최적화
+
+GitHub Actions 워크플로우를 개선하여 빌드 효율성을 향상시켰습니다.
+
+### 적용 기술
+
+| 기술 | 설명 | 효과 |
+|------|------|------|
+| **Gradle 캐시** | 의존성 + 빌드 결과물 캐싱 | 빌드 시간 단축 |
+| **테스트 병렬 실행** | `maxParallelForks` 설정 | 테스트 시간 단축 |
+| **Job 병렬화** | Backend/Frontend 동시 빌드 | 전체 파이프라인 시간 단축 |
+| **Concurrency 제어** | 동일 브랜치 중복 취소 | 리소스 절약 |
+| **Docker 레이어 캐시** | BuildKit 캐시 활용 | 이미지 빌드 시간 단축 |
+
+### 워크플로우 구조
+
+```yaml
+jobs:
+  build-backend:    # Gradle 빌드 + 테스트 + JaCoCo
+  build-frontend:   # npm ci + build (병렬 실행)
+  docker:           # 이미지 빌드 (needs: build-backend)
+  summary:          # 빌드 결과 요약 (always)
+  deploy:           # NCP 배포 (main 브랜치만)
+```
+
+### 주요 기능
+
+#### 1. Gradle 캐시 최적화
+
+```yaml
+- name: Cache Gradle packages
+  uses: actions/cache@v4
+  with:
+    path: |
+      ~/.gradle/caches
+      ~/.gradle/wrapper
+      .gradle
+      build/classes
+    key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*') }}
+```
+
+#### 2. 테스트 병렬 실행
+
+```kotlin
+// build.gradle.kts
+tasks.withType<Test> {
+    maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
+}
+```
+
+#### 3. 빌드 시간 측정
+
+```yaml
+- name: Record build start time
+  id: build-start
+  run: echo "start=$(date +%s)" >> $GITHUB_OUTPUT
+
+- name: Calculate build duration
+  id: build-time
+  run: |
+    duration=$(($(date +%s) - ${{ steps.build-start.outputs.start }}))
+    echo "duration=${duration}s" >> $GITHUB_OUTPUT
+```
+
+#### 4. PR 커버리지 리포트
+
+```yaml
+- name: Add coverage to PR
+  uses: madrapps/jacoco-report@v1.6.1
+  if: github.event_name == 'pull_request'
+  with:
+    paths: build/reports/jacoco/test/jacocoTestReport.xml
+    min-coverage-overall: 60
+```
+
+#### 5. 배포 후 Health Check
+
+```yaml
+- name: Health check
+  run: |
+    for i in {1..5}; do
+      if curl -sf "https://$DEPLOY_HOST/actuator/health"; then
+        exit 0
+      fi
+      sleep 10
+    done
+    exit 1
+```
+
+### GitHub Summary 출력
+
+워크플로우 완료 시 자동으로 빌드 요약을 생성합니다:
+
+| Component | Status | Duration |
+|-----------|--------|----------|
+| Backend | ✅ | 45s |
+| Frontend | ✅ | 20s |
+| Docker | ✅ | - |
+
+### 예상 효과
+
+| 항목 | Before | After |
+|------|--------|-------|
+| 캐시 히트 시 빌드 | ~90초 | ~45초 |
+| 테스트 실행 | 순차 | 병렬 (CPU/2) |
+| 중복 워크플로우 | 모두 실행 | 자동 취소 |
+| 빌드 결과 확인 | 로그 확인 | Summary 테이블 |
+
+---
+
 ## 기술 스택
 
 | 기술 | 용도 |
@@ -716,6 +827,8 @@ docker-compose up --build
 | **Docker Multi-stage** | **이미지 최적화** |
 | **Alpine Linux** | **경량 베이스 이미지** |
 | **Layered JAR** | **빌드 캐시 최적화** |
+| **GitHub Actions** | **CI/CD 파이프라인** |
+| **Gradle 병렬 테스트** | **테스트 시간 단축** |
 
 ---
 
@@ -726,3 +839,5 @@ docker-compose up --build
 - [K6 Documentation](https://k6.io/docs/)
 - [Spring Boot Docker Layers](https://docs.spring.io/spring-boot/docs/current/reference/html/container-images.html#container-images.dockerfiles)
 - [Docker Multi-stage Builds](https://docs.docker.com/build/building/multi-stage/)
+- [GitHub Actions Cache](https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows)
+- [Gradle Parallel Test Execution](https://docs.gradle.org/current/userguide/performance.html#parallel_test_execution)

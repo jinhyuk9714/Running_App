@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD Pipeline
 
 on:
   push:
@@ -6,49 +6,149 @@ on:
   pull_request:
     branches: [main, develop]
 
+# 동일 브랜치에서 새 push 시 이전 workflow 취소
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: '17'
+  NODE_VERSION: '20'
+  DOCKER_IMAGE: running-app
+
 jobs:
+  # ==========================================================================
+  # Backend Build & Test
+  # ==========================================================================
   build-backend:
-    name: Build Backend
+    name: Backend Build & Test
     runs-on: ubuntu-latest
+    outputs:
+      build_time: ${{ steps.build-time.outputs.duration }}
+      test_count: ${{ steps.test-results.outputs.count }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
         with:
-          java-version: "17"
-          distribution: "temurin"
-          cache: "gradle"
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+
+      # Gradle 캐시 (의존성 + 빌드 캐시)
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            .gradle
+            build/classes
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build with Gradle
-        run: ./gradlew build --no-daemon
+      # 빌드 시간 측정 시작
+      - name: Record build start time
+        id: build-start
+        run: echo "start=$(date +%s)" >> $GITHUB_OUTPUT
 
+      # 테스트 병렬 실행 (maxParallelForks)
+      - name: Build and Test
+        run: |
+          ./gradlew build jacocoTestReport --no-daemon --parallel \
+            -Dorg.gradle.workers.max=4
+        env:
+          GRADLE_OPTS: '-Xmx2g -XX:+UseParallelGC'
+
+      # 빌드 시간 측정 종료
+      - name: Calculate build duration
+        id: build-time
+        run: |
+          end=$(date +%s)
+          start=${{ steps.build-start.outputs.start }}
+          duration=$((end - start))
+          echo "duration=${duration}s" >> $GITHUB_OUTPUT
+          echo "::notice::Build completed in ${duration} seconds"
+
+      # 테스트 결과 파싱
+      - name: Parse test results
+        id: test-results
+        if: always()
+        run: |
+          if [ -f build/test-results/test/*.xml ]; then
+            count=$(grep -h "tests=" build/test-results/test/*.xml | grep -oP 'tests="\K[0-9]+' | head -1)
+            echo "count=${count:-0}" >> $GITHUB_OUTPUT
+          else
+            echo "count=0" >> $GITHUB_OUTPUT
+          fi
+
+      # 테스트 리포트 업로드
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: build/test-results/test/
+          retention-days: 7
+
+      # JaCoCo 커버리지 리포트 업로드
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: coverage-report
+          path: build/reports/jacoco/test/html/
+          retention-days: 7
+
+      # PR에 커버리지 코멘트 추가
+      - name: Add coverage to PR
+        uses: madrapps/jacoco-report@v1.6.1
+        if: github.event_name == 'pull_request'
+        with:
+          paths: build/reports/jacoco/test/jacocoTestReport.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          min-coverage-overall: 60
+          min-coverage-changed-files: 70
+          title: '📊 테스트 커버리지 리포트'
+
+      # JAR 아티팩트 업로드
       - name: Upload JAR artifact
         uses: actions/upload-artifact@v4
         if: success()
         with:
           name: backend-jar
           path: build/libs/*.jar
+          retention-days: 3
 
+  # ==========================================================================
+  # Frontend Build
+  # ==========================================================================
   build-frontend:
-    name: Build Frontend
+    name: Frontend Build
     runs-on: ubuntu-latest
+    outputs:
+      build_time: ${{ steps.build-time.outputs.duration }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "npm"
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
+
+      - name: Record build start time
+        id: build-start
+        run: echo "start=$(date +%s)" >> $GITHUB_OUTPUT
 
       - name: Install dependencies
         run: npm ci
@@ -58,16 +158,33 @@ jobs:
         run: npm run build
         working-directory: frontend
 
+      - name: Calculate build duration
+        id: build-time
+        run: |
+          end=$(date +%s)
+          start=${{ steps.build-start.outputs.start }}
+          duration=$((end - start))
+          echo "duration=${duration}s" >> $GITHUB_OUTPUT
+          echo "::notice::Frontend build completed in ${duration} seconds"
+
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v4
         if: success()
         with:
           name: frontend-dist
           path: frontend/dist
+          retention-days: 3
 
+  # ==========================================================================
+  # Docker Build
+  # ==========================================================================
   docker:
+    name: Docker Build
     runs-on: ubuntu-latest
     needs: build-backend
+    outputs:
+      image_size: ${{ steps.image-size.outputs.size }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -75,21 +192,87 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # Docker 레이어 캐시
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: docker-${{ runner.os }}-${{ hashFiles('Dockerfile', 'build.gradle.kts') }}
+          restore-keys: |
+            docker-${{ runner.os }}-
+
+      # 이미지 태그 생성 (버전 + SHA)
+      - name: Generate image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
       - name: Build Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: false
-          tags: running-app:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+          outputs: type=docker,dest=/tmp/image.tar
 
+      # 이미지 크기 측정
+      - name: Measure image size
+        id: image-size
+        run: |
+          size=$(du -h /tmp/image.tar | cut -f1)
+          echo "size=${size}" >> $GITHUB_OUTPUT
+          echo "::notice::Docker image size: ${size}"
+
+      # 캐시 정리 (캐시 크기 무한 증가 방지)
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+  # ==========================================================================
+  # Build Summary
+  # ==========================================================================
+  summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: [build-backend, build-frontend, docker]
+    if: always()
+
+    steps:
+      - name: Create summary
+        run: |
+          echo "## 🏃 Running App CI/CD Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Status | Duration |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|----------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend | ${{ needs.build-backend.result == 'success' && '✅' || '❌' }} | ${{ needs.build-backend.outputs.build_time || 'N/A' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend | ${{ needs.build-frontend.result == 'success' && '✅' || '❌' }} | ${{ needs.build-frontend.outputs.build_time || 'N/A' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker | ${{ needs.docker.result == 'success' && '✅' || '❌' }} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tests**: ${{ needs.build-backend.outputs.test_count || '0' }} tests" >> $GITHUB_STEP_SUMMARY
+          echo "- **Docker Image**: ${{ needs.docker.outputs.image_size || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "*Commit: ${{ github.sha }}*" >> $GITHUB_STEP_SUMMARY
+
+  # ==========================================================================
+  # Deploy to Production
+  # ==========================================================================
   deploy:
     name: Deploy to NCP
     runs-on: ubuntu-latest
     needs: [build-backend, build-frontend]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: production
+
     steps:
       - name: Download backend JAR
         uses: actions/download-artifact@v4
@@ -120,7 +303,7 @@ jobs:
         run: |
           JAR=$(find backend -name "*.jar" -type f ! -name "*-plain.jar" | head -1)
           if [ -z "$JAR" ]; then echo "::error::JAR not found"; exit 1; fi
-          echo "Deploying backend: $JAR"
+          echo "::notice::Deploying backend: $JAR"
           scp -o StrictHostKeyChecking=no "$JAR" $DEPLOY_USER@$DEPLOY_HOST:~/app.jar
           ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$DEPLOY_HOST 'sudo systemctl restart running-app'
 
@@ -129,6 +312,36 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
         run: |
-          echo "Deploying frontend..."
+          echo "::notice::Deploying frontend..."
           scp -o StrictHostKeyChecking=no -r frontend-dist/* $DEPLOY_USER@$DEPLOY_HOST:/var/www/html/
-          echo "Frontend deployed successfully"
+          echo "::notice::Frontend deployed successfully"
+
+      - name: Health check
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          echo "Waiting for application to start..."
+          sleep 30
+          for i in {1..5}; do
+            if curl -sf "https://$DEPLOY_HOST/actuator/health" > /dev/null; then
+              echo "::notice::Health check passed!"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+          echo "::error::Health check failed after 5 attempts"
+          exit 1
+
+      - name: Create deployment summary
+        if: success()
+        run: |
+          echo "## 🚀 Deployment Successful!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: Production" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Time**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Links" >> $GITHUB_STEP_SUMMARY
+          echo "- [Swagger UI](https://${{ secrets.DEPLOY_HOST }}/swagger-ui/index.html)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Health Check](https://${{ secrets.DEPLOY_HOST }}/actuator/health)" >> $GITHUB_STEP_SUMMARY

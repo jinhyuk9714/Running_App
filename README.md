@@ -8,6 +8,7 @@
 [![Swift](https://img.shields.io/badge/SwiftUI-5-FA7343?logo=swift&logoColor=white)](https://developer.apple.com/xcode/swiftui/)
 [![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)](https://redis.io/)
 [![Docker](https://img.shields.io/badge/Docker-Alpine-2496ED?logo=docker&logoColor=white)](Dockerfile)
+[![CI/CD](https://img.shields.io/github/actions/workflow/status/jinhyuk9714/Running_App/ci.yml?label=CI%2FCD&logo=githubactions&logoColor=white)](https://github.com/jinhyuk9714/Running_App/actions)
 [![Coverage](https://img.shields.io/badge/Coverage-62%25-yellow?logo=codecov&logoColor=white)](build/reports/jacoco/test/html/index.html)
 
 > 러닝 활동 기록, 챌린지 참여, 트레이닝 플랜 관리를 제공하는 애플리케이션입니다.
@@ -526,6 +527,54 @@ COPY --from=build /app/extracted/application/ ./         # 소스 변경 시만 
 **빌드 시간 개선** (소스만 변경 시)
 - Before: 전체 JAR 복사 (~45초)
 - After: application 레이어만 (~5초)
+
+---
+
+### Phase 8: CI/CD 파이프라인 최적화
+
+GitHub Actions 워크플로우 개선으로 **빌드 효율성 향상**
+
+**적용 기술**
+
+| 기술 | 효과 |
+|------|------|
+| **Gradle 캐시** | 의존성 + 빌드 결과물 캐싱 |
+| **테스트 병렬 실행** | `maxParallelForks` 설정 |
+| **Job 병렬화** | Backend/Frontend 동시 빌드 |
+| **Concurrency 제어** | 중복 워크플로우 자동 취소 |
+
+**워크플로우 구조**
+
+```
+┌─────────────────┐  ┌─────────────────┐
+│  build-backend  │  │ build-frontend  │   ← 병렬 실행
+│  (Gradle + Test)│  │    (npm ci)     │
+└────────┬────────┘  └────────┬────────┘
+         │                    │
+         ▼                    │
+┌─────────────────┐           │
+│     docker      │           │
+│  (Image Build)  │           │
+└────────┬────────┘           │
+         │                    │
+         ▼                    ▼
+┌─────────────────────────────────────┐
+│              deploy                 │   ← main 브랜치만
+│  (Backend JAR + Frontend dist)      │
+└─────────────────────────────────────┘
+```
+
+**빌드 시간 측정 (GitHub Summary)**
+
+| 컴포넌트 | 측정 항목 |
+|----------|----------|
+| Backend | 빌드 시간, 테스트 수, 커버리지 |
+| Frontend | 빌드 시간 |
+| Docker | 이미지 크기 |
+
+**PR 커버리지 리포트**
+- 자동 커버리지 코멘트 (min 60%)
+- JaCoCo XML 리포트 분석
 
 <br>
 

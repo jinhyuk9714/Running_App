@@ -60,6 +60,22 @@ dependencies {
 tasks.withType<Test> {
     useJUnitPlatform()
     finalizedBy(tasks.jacocoTestReport)
+
+    // 테스트 병렬 실행 (CI 환경에서 빌드 시간 단축)
+    maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
+
+    // 테스트 리포트 설정
+    reports {
+        junitXml.required.set(true)
+        html.required.set(true)
+    }
+
+    // 테스트 로깅
+    testLogging {
+        events("passed", "skipped", "failed")
+        showStandardStreams = false
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    }
 }
 
 jacoco {
