@@ -1,6 +1,12 @@
 # Running App
 
-나이키 러닝 앱 스타일 - 러닝 활동 저장, 챌린지/플랜 추천 백엔드 API
+나이키 런 클럽 스타일 풀스택 러닝 앱
+
+- **Backend**: Spring Boot 3.3 REST API (Java 17, Gradle, JWT 인증)
+- **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS
+- **iOS**: SwiftUI 앱 (GPS 트래킹, HealthKit 연동)
+- **Database**: H2 (개발) / PostgreSQL (프로덕션)
+- **Deployment**: NCP + Nginx + Let's Encrypt HTTPS
 
 ---
 
@@ -31,11 +37,24 @@
 
 ## 기술 스택
 
+### Backend
 - **Java 17**, Spring Boot 3.3
 - **Spring Security** + JWT, **Spring Boot Actuator** (Health)
 - **Spring Data JPA** (H2 개발 / PostgreSQL 프로덕션)
 - **SpringDoc OpenAPI** (Swagger UI)
 - **Gradle** (Kotlin DSL)
+
+### Frontend
+- **React 18** + **TypeScript**
+- **Vite** (빌드 도구)
+- **Tailwind CSS** (스타일링)
+- **React Router** (라우팅)
+
+### iOS
+- **SwiftUI** (UI 프레임워크)
+- **Core Location** (GPS 트래킹)
+- **HealthKit** (심박수, 케이던스, 걸음 수)
+- **MapKit** (지도 경로 표시)
 
 ---
 
@@ -52,6 +71,33 @@
 - **Swagger UI**: http://localhost:8080/swagger-ui/index.html
 - **Health**: http://localhost:8080/actuator/health (인증 없이 상태 확인)
 - **H2 콘솔**: http://localhost:8080/h2-console (JDBC URL: `jdbc:h2:mem:runningdb`)
+
+### 웹 프론트엔드 (React)
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+- **웹 앱**: http://localhost:3000 (로그인·회원가입, 러닝 기록 목록·상세·지도)
+- 개발 시 Vite 프록시로 `/api` → `localhost:8080` 자동 연결
+
+자세한 설정·배포는 [frontend/README.md](frontend/README.md) 참고.
+
+### iOS 앱
+
+```bash
+open ios/RunningApp/RunningApp.xcodeproj   # Xcode에서 열고 Cmd+R로 실행
+```
+
+- [ios/README.md](ios/README.md) 참고
+
+### Docker
+
+```bash
+docker-compose up --build    # PostgreSQL과 함께 풀스택 실행
+```
 
 ---
 
@@ -113,15 +159,33 @@
 
 ## 프로젝트 구조
 
+### Backend (`src/main/java/com/runningapp/`)
+
 ```
-com.runningapp
-├── config/       # Security, JPA, Swagger, 시드 데이터
-├── controller/   # REST (Auth, Activity, Challenge, TrainingPlan)
-├── service/      # 비즈니스 로직
-├── repository/   # JPA Repository
-├── domain/       # Entity
-├── dto/          # Request/Response
-├── exception/    # GlobalExceptionHandler
-├── security/     # JWT 필터
-└── util/         # JWT, LevelCalculator
+config/       # SecurityConfig (JWT 필터), OpenApiConfig, DataLoaders (시드 데이터)
+controller/   # REST 엔드포인트: Auth, RunningActivity, Challenge, TrainingPlan
+service/      # 비즈니스 로직
+repository/   # Spring Data JPA Repository
+domain/       # JPA Entity: User, RunningActivity, Challenge, UserChallenge, TrainingPlan, PlanWeek, UserPlan
+dto/          # Request/Response (auth/, activity/, challenge/, plan/)
+exception/    # GlobalExceptionHandler, BadRequestException, NotFoundException
+security/     # JwtAuthenticationFilter, AuthenticationPrincipal, UserIdArgumentResolver
+```
+
+### Frontend (`frontend/src/`)
+
+```
+pages/        # Login, Signup, Dashboard, ActivityList, ActivityDetail, Challenges, Plans, Profile
+components/   # 재사용 UI 컴포넌트 (Layout, Nav 등)
+api/          # API 클라이언트 래퍼
+types.ts      # TypeScript 인터페이스
+```
+
+### iOS (`ios/RunningApp/RunningApp/`)
+
+```
+RunTrackingView.swift     # 실시간 GPS/HealthKit 기록 화면
+LocationManager.swift     # Core Location 래퍼
+HealthKitManager.swift    # 심박수, 케이던스, 걸음 수
+APIClient.swift           # REST API 통신
 ```
