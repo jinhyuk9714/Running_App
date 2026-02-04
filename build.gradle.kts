@@ -20,12 +20,14 @@ repositories {
 }
 
 dependencies {
-    // Spring Boot Starters (웹, JPA, Security, Validation)
+    // Spring Boot Starters (웹, JPA, Security, Validation, Cache)
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
+    implementation("org.springframework.boot:spring-boot-starter-cache")
 
     // Database: H2(개발), PostgreSQL(프로덕션)
     runtimeOnly("com.h2database:h2")

@@ -1,0 +1,58 @@
+{
+  "phase": "REDIS_CACHING",
+  "testDate": "2026-02-04",
+  "description": "Redis 캐싱 적용 후 성능 테스트",
+  "configuration": {
+    "duration": "60s",
+    "maxVUs": 50,
+    "cacheType": "Redis",
+    "cacheTTL": {
+      "activitySummary": "5min",
+      "activityStats": "5min",
+      "activeChallenges": "10min",
+      "recommendedChallenges": "5min",
+      "plans": "30min",
+      "recommendedPlans": "10min",
+      "planSchedule": "1hour"
+    }
+  },
+  "results": {
+    "totalRequests": 4306,
+    "throughput": "70.22 req/s",
+    "responseTime": {
+      "avg": "15.19ms",
+      "p95": "73.82ms",
+      "max": "113.63ms"
+    },
+    "errorRate": "0.00%",
+    "endpointResponseTimes": {
+      "login": "71.18ms",
+      "activities": "1.85ms",
+      "summary": "1.02ms",
+      "challenges": "0.97ms",
+      "plans": "1.02ms"
+    }
+  },
+  "comparison": {
+    "baseline": {
+      "throughput": "67.92 req/s",
+      "avgResponse": "21.94ms",
+      "p95Response": "93.96ms",
+      "activities": "6.28ms",
+      "summary": "7.43ms",
+      "challenges": "4.34ms",
+      "plans": "3.87ms",
+      "login": "88.04ms"
+    },
+    "improvement": {
+      "throughput": "+3.4%",
+      "avgResponse": "-30.8%",
+      "p95Response": "-21.4%",
+      "activities": "-70.5%",
+      "summary": "-86.3%",
+      "challenges": "-77.6%",
+      "plans": "-73.6%",
+      "login": "-19.2%"
+    }
+  }
+}

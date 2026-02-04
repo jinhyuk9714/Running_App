@@ -1,0 +1,30 @@
+# 테스트 환경 설정
+spring:
+  profiles:
+    active: test
+  application:
+    name: running-app
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        default_schema: public
+    database-platform: org.hibernate.dialect.H2Dialect
+  # 테스트에서는 인메모리 캐시 사용
+  cache:
+    type: simple
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+jwt:
+  secret: test-secret-key-for-jwt-token-generation-minimum-256-bits-long
+  expiration-ms: 86400000

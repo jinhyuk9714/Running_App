@@ -11,6 +11,9 @@ import com.runningapp.exception.NotFoundException;
 import com.runningapp.repository.RunningActivityRepository;
 import com.runningapp.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -39,6 +42,10 @@ public class RunningActivityService {
     private final TrainingPlanService trainingPlanService;
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "activitySummary", key = "#userId"),
+            @CacheEvict(value = "activityStats", key = "#userId + '_' + T(java.time.LocalDate).now().year + '_' + T(java.time.LocalDate).now().monthValue")
+    })
     public ActivityResponse create(Long userId, ActivityRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다"));
@@ -96,6 +103,10 @@ public class RunningActivityService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "activitySummary", key = "#userId"),
+            @CacheEvict(value = "activityStats", key = "#userId + '_' + T(java.time.LocalDate).now().year + '_' + T(java.time.LocalDate).now().monthValue")
+    })
     public ActivityResponse update(Long userId, Long activityId, ActivityRequest request) {
         RunningActivity activity = activityRepository.findById(activityId)
                 .orElseThrow(() -> new NotFoundException("활동을 찾을 수 없습니다"));
@@ -130,6 +141,10 @@ public class RunningActivityService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "activitySummary", key = "#userId"),
+            @CacheEvict(value = "activityStats", key = "#userId + '_' + T(java.time.LocalDate).now().year + '_' + T(java.time.LocalDate).now().monthValue")
+    })
     public void delete(Long userId, Long activityId) {
         RunningActivity activity = activityRepository.findById(activityId)
                 .orElseThrow(() -> new NotFoundException("활동을 찾을 수 없습니다"));
@@ -146,6 +161,7 @@ public class RunningActivityService {
         activityRepository.delete(activity);
     }
 
+    @Cacheable(value = "activityStats", key = "#userId + '_' + #year + '_' + #month", condition = "#year != null && #month != null")
     public ActivityStatsResponse getStats(Long userId, Integer year, Integer month) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다"));
@@ -197,6 +213,7 @@ public class RunningActivityService {
     }
 
     /** 주간/월간 요약: 이번 주, 이번 달, 지난달 통계 (ISO 주: 월요일 시작) */
+    @Cacheable(value = "activitySummary", key = "#userId")
     public ActivitySummaryResponse getSummary(Long userId) {
         userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다"));

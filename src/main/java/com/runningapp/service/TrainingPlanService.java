@@ -12,6 +12,8 @@ import com.runningapp.repository.TrainingPlanRepository;
 import com.runningapp.repository.UserPlanRepository;
 import com.runningapp.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +36,7 @@ public class TrainingPlanService {
     private final RunningActivityRepository activityRepository;
 
     /** 플랜 목록 조회 (목표별 필터) */
+    @Cacheable(value = "plans", key = "'list_' + #goalType + '_' + #difficulty")
     public List<PlanResponse> getPlans(GoalType goalType, PlanDifficulty difficulty) {
         List<TrainingPlan> plans;
         if (goalType != null && difficulty != null) {
@@ -47,6 +50,7 @@ public class TrainingPlanService {
     }
 
     /** 추천 플랜 (목표/레벨 기반) */
+    @Cacheable(value = "recommendedPlans", key = "#userId + '_' + #goalType")
     public List<PlanResponse> getRecommendedPlans(Long userId, GoalType goalType) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다"));
@@ -73,6 +77,7 @@ public class TrainingPlanService {
     }
 
     @Transactional
+    @CacheEvict(value = "recommendedPlans", allEntries = true)
     public UserPlanResponse startPlan(Long userId, Long planId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다"));
@@ -146,6 +151,7 @@ public class TrainingPlanService {
     }
 
     /** 주차별 스케줄 조회 */
+    @Cacheable(value = "planSchedule", key = "#planId")
     public List<PlanWeekResponse> getSchedule(Long planId) {
         TrainingPlan plan = planRepository.findById(planId)
                 .orElseThrow(() -> new NotFoundException("플랜을 찾을 수 없습니다"));

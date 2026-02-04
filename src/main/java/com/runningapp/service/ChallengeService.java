@@ -12,6 +12,8 @@ import com.runningapp.repository.ChallengeRepository;
 import com.runningapp.repository.UserChallengeRepository;
 import com.runningapp.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +33,7 @@ public class ChallengeService {
     private final UserRepository userRepository;
 
     /** 진행중인 챌린지 목록 */
+    @Cacheable(value = "activeChallenges", key = "'all'")
     public List<ChallengeResponse> getActiveChallenges() {
         return challengeRepository.findActiveByDate(LocalDate.now()).stream()
                 .map(ChallengeResponse::from)
@@ -38,6 +41,7 @@ public class ChallengeService {
     }
 
     /** 추천 챌린지 (레벨/목표 기반 - 진행중인 챌린지 중 미참여, 레벨에 맞는 것 우선) */
+    @Cacheable(value = "recommendedChallenges", key = "#userId")
     public List<ChallengeResponse> getRecommendedChallenges(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다"));
@@ -57,6 +61,7 @@ public class ChallengeService {
     }
 
     @Transactional
+    @CacheEvict(value = "recommendedChallenges", key = "#userId")
     public UserChallengeResponse joinChallenge(Long userId, Long challengeId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다"));

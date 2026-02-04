@@ -4,14 +4,18 @@ import com.runningapp.domain.GoalType;
 import com.runningapp.domain.PlanDifficulty;
 import com.runningapp.domain.TrainingPlan;
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
 @Schema(description = "트레이닝 플랜 응답")
 @Getter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class PlanResponse {
 
     @Schema(description = "플랜 ID")

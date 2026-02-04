@@ -2,12 +2,16 @@ package com.runningapp.dto.plan;
 
 import com.runningapp.domain.PlanWeek;
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Schema(description = "플랜 주차별 스케줄")
 @Getter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class PlanWeekResponse {
 
     @Schema(description = "주차 번호")

@@ -1,13 +1,17 @@
 package com.runningapp.dto.activity;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 /** 러닝 통계 응답 DTO (GET /api/activities/stats) */
 @Schema(description = "러닝 통계 응답")
 @Getter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ActivityStatsResponse {
 
     @Schema(description = "총 거리 (km)")

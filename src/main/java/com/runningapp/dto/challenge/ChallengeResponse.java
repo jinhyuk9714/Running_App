@@ -3,8 +3,10 @@ package com.runningapp.dto.challenge;
 import com.runningapp.domain.Challenge;
 import com.runningapp.domain.ChallengeType;
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -12,6 +14,8 @@ import java.time.LocalDateTime;
 @Schema(description = "챌린지 응답")
 @Getter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ChallengeResponse {
 
     @Schema(description = "챌린지 ID")
