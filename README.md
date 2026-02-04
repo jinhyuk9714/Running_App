@@ -608,6 +608,47 @@ X-Rate-Limit-Retry-After-Seconds: 30  # 재시도까지 대기 시간 (제한 �
 ```
 HTTP Status: `429 Too Many Requests`
 
+---
+
+### Phase 10: 구조화된 로깅 (Structured Logging)
+
+**Logstash Logback Encoder**로 JSON 형식 로그 출력 (ELK 연동 가능)
+
+**프로파일별 로그 포맷**
+
+| 환경 | 포맷 | 용도 |
+|------|------|------|
+| local/test | 컬러 콘솔 | 개발 편의성 |
+| prod/docker | **JSON** | ELK 연동, 로그 분석 |
+
+**JSON 로그 예시**
+
+```json
+{
+  "@timestamp": "2024-01-01T12:00:00.000+09:00",
+  "level": "INFO",
+  "logger_name": "c.r.service.AuthService",
+  "message": "로그인 성공",
+  "userId": 123,
+  "email": "user@test.com",
+  "requestId": "abc12345",
+  "clientIp": "192.168.1.1",
+  "uri": "/api/auth/login",
+  "duration": 45
+}
+```
+
+**MDC 자동 추적 필드**
+
+| 필드 | 설명 |
+|------|------|
+| `requestId` | 요청별 고유 ID (UUID) |
+| `userId` | 인증된 사용자 ID |
+| `clientIp` | 클라이언트 IP |
+| `method` | HTTP 메서드 |
+| `uri` | 요청 URI |
+| `duration` | 처리 시간 (ms) |
+
 <br>
 
 ## 🚀 실행 방법

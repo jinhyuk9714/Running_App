@@ -48,6 +48,9 @@ dependencies {
     // Rate Limiting: Bucket4j (Token Bucket 알고리즘)
     implementation("com.bucket4j:bucket4j-core:8.10.1")
 
+    // Structured Logging: JSON 포맷 (ELK 연동 가능)
+    implementation("net.logstash.logback:logstash-logback-encoder:7.4")
+
     // Lombok: @Getter, @Builder 등 보일러플레이트 제거
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")

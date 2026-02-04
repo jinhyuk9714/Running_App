@@ -1,5 +1,6 @@
 package com.runningapp.exception;
 
+import com.runningapp.util.LogUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -28,7 +29,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException e) {
         ErrorCode errorCode = e.getErrorCode();
-        log.warn("Business exception: {} - {}", errorCode.getCode(), e.getMessage());
+        LogUtils.warn(log, "비즈니스 예외 발생", Map.of(
+                "errorCode", errorCode.getCode(),
+                "errorMessage", e.getMessage()
+        ));
 
         return ResponseEntity
                 .status(errorCode.getHttpStatus())
@@ -38,7 +42,7 @@ public class GlobalExceptionHandler {
     /** 400 Bad Request - 비즈니스 로직 오류 (중복 이메일 등) - 레거시 지원 */
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ErrorResponse> handleBadRequest(BadRequestException e) {
-        log.warn("Bad request: {}", e.getMessage());
+        LogUtils.warn(log, "잘못된 요청", "errorMessage", e.getMessage());
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
@@ -48,7 +52,7 @@ public class GlobalExceptionHandler {
     /** 404 Not Found - 리소스 없음 - 레거시 지원 */
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(NotFoundException e) {
-        log.warn("Not found: {}", e.getMessage());
+        LogUtils.warn(log, "리소스 없음", "errorMessage", e.getMessage());
 
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
@@ -65,7 +69,7 @@ public class GlobalExceptionHandler {
             errors.put(fieldName, message);
         });
 
-        log.warn("Validation failed: {}", errors);
+        LogUtils.warn(log, "유효성 검증 실패", "validationErrors", errors);
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
@@ -75,7 +79,7 @@ public class GlobalExceptionHandler {
     /** 429 Too Many Requests - Rate Limit 초과 */
     @ExceptionHandler(RateLimitExceededException.class)
     public ResponseEntity<ErrorResponse> handleRateLimitExceeded(RateLimitExceededException e) {
-        log.warn("Rate limit exceeded: {}", e.getMessage());
+        LogUtils.warn(log, "Rate Limit 초과", "errorMessage", e.getMessage());
 
         return ResponseEntity
                 .status(HttpStatus.TOO_MANY_REQUESTS)
@@ -85,7 +89,7 @@ public class GlobalExceptionHandler {
     /** 500 Internal Server Error - 기타 모든 예외 */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleException(Exception e) {
-        log.error("Unexpected error", e);
+        LogUtils.error(log, "예상치 못한 오류 발생", e, "exceptionClass", e.getClass().getSimpleName());
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)

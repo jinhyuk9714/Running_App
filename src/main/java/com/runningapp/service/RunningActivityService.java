@@ -13,7 +13,9 @@ import com.runningapp.event.ActivityUpdatedEvent;
 import com.runningapp.exception.NotFoundException;
 import com.runningapp.repository.RunningActivityRepository;
 import com.runningapp.repository.UserRepository;
+import com.runningapp.util.LogUtils;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -29,6 +31,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 러닝 활동 서비스 (CRUD, 통계)
@@ -37,6 +40,7 @@ import java.util.List;
  * - 활동 저장 후 이벤트 발행 → 비동기 리스너가 레벨/챌린지/플랜 업데이트
  * - 응답 시간 단축 (동기 ~100ms → 비동기 ~30ms)
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -69,6 +73,13 @@ public class RunningActivityService {
                 .build();
 
         activity = activityRepository.save(activity);
+
+        LogUtils.info(log, "활동 저장 완료", Map.of(
+                "activityId", activity.getId(),
+                "userId", userId,
+                "distance", request.getDistance(),
+                "duration", request.getDuration()
+        ));
 
         // 비동기 이벤트 발행 (레벨/챌린지/플랜 업데이트는 리스너에서 처리)
         eventPublisher.publishEvent(new ActivityCompletedEvent(

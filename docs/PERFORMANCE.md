@@ -19,6 +19,7 @@ Nike Run Club 스타일 러닝 앱의 Spring Boot 백엔드 성능을 단계적�
 | Phase 7 | Docker Optimization | 이미지 크기 47% 감소 |
 | Phase 8 | CI/CD Pipeline | 빌드 캐싱, 병렬 실행 |
 | Phase 9 | Rate Limiting | 보안 강화, 브루트포스 방지 |
+| Phase 10 | Structured Logging | JSON 로그, MDC 추적 |
 
 ---
 
@@ -911,6 +912,114 @@ private String getClientIp(HttpServletRequest request) {
 
 ---
 
+## Phase 10: 구조화된 로깅 (Structured Logging)
+
+JSON 형식의 구조화된 로그로 ELK(Elasticsearch-Logstash-Kibana) 연동 및 로그 분석을 용이하게 합니다.
+
+### 프로파일별 로그 포맷
+
+| 프로파일 | 포맷 | Appender | 용도 |
+|---------|------|----------|------|
+| local, test | 컬러 콘솔 | CONSOLE | 개발 가독성 |
+| prod, docker | JSON | JSON + FILE | ELK 연동 |
+
+### JSON 로그 출력 예시
+
+```json
+{
+  "@timestamp": "2024-01-01T12:00:00.000+0900",
+  "@version": "1",
+  "message": "로그인 성공",
+  "logger_name": "com.runningapp.service.AuthService",
+  "level": "INFO",
+  "level_value": 20000,
+  "app": "running-app",
+  "env": "prod",
+  "requestId": "abc12345",
+  "userId": "123",
+  "clientIp": "192.168.1.100",
+  "method": "POST",
+  "uri": "/api/auth/login",
+  "duration": "45",
+  "email": "user@test.com"
+}
+```
+
+### MDC (Mapped Diagnostic Context)
+
+모든 로그에 자동으로 추가되는 추적 필드:
+
+| 필드 | 설명 | 예시 |
+|------|------|------|
+| `requestId` | 요청별 고유 ID | `abc12345` |
+| `userId` | 인증된 사용자 ID | `123` |
+| `clientIp` | 클라이언트 IP | `192.168.1.100` |
+| `method` | HTTP 메서드 | `POST` |
+| `uri` | 요청 URI | `/api/auth/login` |
+| `duration` | 처리 시간 (ms) | `45` |
+
+### LoggingFilter 구현
+
+```java
+@Component
+@Order(Ordered.HIGHEST_PRECEDENCE)
+public class LoggingFilter extends OncePerRequestFilter {
+    @Override
+    protected void doFilterInternal(...) {
+        try {
+            // MDC에 요청 정보 설정
+            MDC.put("requestId", UUID.randomUUID().toString().substring(0, 8));
+            MDC.put("clientIp", getClientIp(request));
+            MDC.put("method", request.getMethod());
+            MDC.put("uri", request.getRequestURI());
+
+            filterChain.doFilter(request, response);
+        } finally {
+            // MDC 정리 (메모리 누수 방지)
+            MDC.clear();
+        }
+    }
+}
+```
+
+### LogUtils 유틸리티
+
+비즈니스 로직에서 구조화된 로그를 쉽게 작성:
+
+```java
+// 단일 필드
+LogUtils.info(log, "로그인 성공", "email", "user@test.com");
+
+// 다중 필드
+LogUtils.info(log, "활동 저장 완료", Map.of(
+    "activityId", 123,
+    "distance", 5.5,
+    "duration", 1800
+));
+```
+
+### 로그 파일 롤링 정책
+
+```xml
+<rollingPolicy class="TimeBasedRollingPolicy">
+    <fileNamePattern>logs/running-app.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+    <maxFileSize>100MB</maxFileSize>
+    <maxHistory>30</maxHistory>
+    <totalSizeCap>3GB</totalSizeCap>
+</rollingPolicy>
+```
+
+### 운영 효과
+
+| 항목 | Before | After |
+|------|--------|-------|
+| 로그 검색 | grep 텍스트 검색 | **JSON 필드 쿼리** |
+| 요청 추적 | 수동 correlate | **requestId로 자동 추적** |
+| 에러 분석 | 로그 파일 직접 확인 | **ELK 대시보드** |
+| 응답 시간 모니터링 | 별도 APM | **duration 필드** |
+
+---
+
 ## 기술 스택
 
 | 기술 | 용도 |
@@ -931,6 +1040,8 @@ private String getClientIp(HttpServletRequest request) {
 | **Gradle 병렬 테스트** | **테스트 시간 단축** |
 | **Bucket4j** | **Rate Limiting** |
 | **Token Bucket** | **요청 제한 알고리즘** |
+| **Logstash Encoder** | **JSON 로그 포맷** |
+| **MDC** | **요청 추적 컨텍스트** |
 
 ---
 
