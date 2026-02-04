@@ -10,6 +10,7 @@
 [![Docker](https://img.shields.io/badge/Docker-Alpine-2496ED?logo=docker&logoColor=white)](Dockerfile)
 [![CI/CD](https://img.shields.io/github/actions/workflow/status/jinhyuk9714/Running_App/ci.yml?label=CI%2FCD&logo=githubactions&logoColor=white)](https://github.com/jinhyuk9714/Running_App/actions)
 [![Coverage](https://img.shields.io/badge/Coverage-62%25-yellow?logo=codecov&logoColor=white)](build/reports/jacoco/test/html/index.html)
+[![Prometheus](https://img.shields.io/badge/Prometheus-Metrics-E6522C?logo=prometheus&logoColor=white)](/actuator/prometheus)
 
 > 러닝 활동 기록, 챌린지 참여, 트레이닝 플랜 관리를 제공하는 애플리케이션입니다.
 > 이벤트 기반 비동기 아키텍처와 Redis 캐싱으로 **응답시간 30% 개선**을 달성했습니다.
@@ -20,7 +21,8 @@
 
 - **이벤트 기반 아키텍처** - 서비스 간 느슨한 결합, 독립적 확장 가능
 - **Redis 캐싱** - 조회 API 응답시간 70~86% 단축
-- **K6 부하 테스트** - 50 VUs 기준 성능 측정 및 최적화
+- **K6 부하 테스트** - 100 VUs 기준 **처리량 29% 증가** 달성
+- **Prometheus 메트릭** - JVM, API, 비즈니스 메트릭 실시간 모니터링
 - **실서비스 배포** - NCP 클라우드, HTTPS, CI/CD 파이프라인
 
 <br>
@@ -32,6 +34,7 @@
 | **Swagger UI** | [jinhyuk-portfolio1.shop/swagger-ui](https://jinhyuk-portfolio1.shop/swagger-ui/index.html) |
 | **API Endpoint** | `https://jinhyuk-portfolio1.shop/api/...` |
 | **Health Check** | [/actuator/health](https://jinhyuk-portfolio1.shop/actuator/health) |
+| **Prometheus Metrics** | [/actuator/prometheus](https://jinhyuk-portfolio1.shop/actuator/prometheus) |
 
 <br>
 
@@ -56,14 +59,16 @@
 | **SwiftUI** | iOS 네이티브 앱 |
 | **HealthKit + CoreLocation** | 심박수, GPS 트래킹 |
 
-### DevOps
+### DevOps & Monitoring
 | 기술 | 용도 |
 |-----|------|
 | **NCP (Naver Cloud)** | 클라우드 인프라 |
 | **Nginx + Let's Encrypt** | 리버스 프록시, HTTPS |
 | **GitHub Actions** | CI/CD 파이프라인 |
-| **Docker** | 컨테이너화 |
+| **Docker** | 컨테이너화 (Alpine, Layered JAR) |
 | **K6** | 부하 테스트 |
+| **Prometheus + Micrometer** | 메트릭 수집 및 모니터링 |
+| **Bucket4j** | Rate Limiting (Token Bucket) |
 
 <br>
 
@@ -456,13 +461,14 @@ CREATE INDEX idx_activities_user_started ON running_activities(user_id, started_
 
 | 지표 | Baseline | 최종 | 개선율 |
 |-----|----------|------|--------|
-| 평균 응답시간 | 21.94ms | 15.67ms | **-28.6%** |
-| P95 응답시간 | 93.96ms | 75.36ms | **-19.8%** |
-| 에러율 | 59.98% | 0.00% | **-100%** |
+| **처리량 (TPS)** | 69.88 req/s | 90.16 req/s | **+29%** |
+| 평균 응답시간 | 15.67ms | 14.97ms | **-4.5%** |
+| P95 응답시간 | 75.36ms | 71.77ms | **-4.8%** |
+| 에러율 | 0.00% | 0.00% | **안정적** |
 | POST /activities | ~100ms | ~5ms | **-95%** |
 | N+1 쿼리 (5개 조회 시) | 6개 | 1개 | **-83%** |
 
-> 📄 상세 내용: [docs/PERFORMANCE.md](docs/PERFORMANCE.md)
+> 📄 상세 내용: [docs/PERFORMANCE.md](docs/PERFORMANCE.md), [docs/PERFORMANCE-COMPARISON.md](docs/PERFORMANCE-COMPARISON.md)
 
 ---
 
@@ -649,6 +655,73 @@ HTTP Status: `429 Too Many Requests`
 | `uri` | 요청 URI |
 | `duration` | 처리 시간 (ms) |
 
+---
+
+### Phase 11: K6 부하 테스트 종합 비교
+
+최적화 전후 성능을 K6 부하 테스트로 측정하여 **처리량 29% 증가** 달성
+
+**테스트 조건**
+- Baseline: 50 VUs, 61초
+- Optimized: 100 VUs, 213초 (부하 2배 증가)
+
+**종합 결과**
+
+| 지표 | Baseline | Optimized | 개선 |
+|------|----------|-----------|------|
+| **처리량 (TPS)** | 69.88 req/s | **90.16 req/s** | **+29%** ⬆️ |
+| **평균 응답시간** | 15.67ms | **14.97ms** | -4.5% ⬇️ |
+| **P95 응답시간** | 75.36ms | **71.77ms** | -4.8% ⬇️ |
+| **최대 응답시간** | 129.58ms | **110.59ms** | -14.7% ⬇️ |
+| **에러율** | 0.00% | 0.00% | 안정적 ✅ |
+
+**엔드포인트별 응답시간**
+
+| API | Baseline | Optimized | 개선율 |
+|-----|----------|-----------|--------|
+| POST /api/auth/login | 73.64ms | 70.88ms | **3.7%** |
+| GET /api/activities | 1.55ms | 1.29ms | **16.8%** |
+| GET /api/activities/summary | 1.01ms | 0.94ms | **6.9%** |
+| GET /api/challenges | 1.16ms | 0.98ms | **15.5%** |
+| GET /api/plans | 1.18ms | 1.03ms | **12.7%** |
+
+> 📄 상세 내용: [docs/PERFORMANCE-COMPARISON.md](docs/PERFORMANCE-COMPARISON.md)
+
+---
+
+### Phase 12: Prometheus + Micrometer 메트릭
+
+실시간 모니터링을 위한 **Prometheus 메트릭** 구현
+
+**메트릭 엔드포인트**
+
+| URL | 설명 |
+|-----|------|
+| `/actuator/prometheus` | Prometheus 스크래핑 엔드포인트 |
+| `/actuator/metrics` | 메트릭 목록 조회 |
+| `/actuator/health` | 헬스 체크 |
+
+**제공 메트릭**
+
+| 카테고리 | 메트릭 | 설명 |
+|---------|--------|------|
+| **JVM** | `jvm_memory_used_bytes` | 힙 메모리 사용량 |
+| | `jvm_threads_live_threads` | 활성 스레드 수 |
+| | `jvm_gc_pause_seconds` | GC 일시 정지 시간 |
+| **HTTP** | `http_server_requests_seconds` | API 응답 시간 (P95, P99) |
+| **캐시** | `cache_gets_total{result=hit/miss}` | 캐시 히트율 |
+| **비즈니스** | `runningapp_users_signup_total` | 회원가입 수 |
+| | `runningapp_auth_login_total` | 로그인 성공/실패 |
+
+**Grafana 대시보드**
+
+`deploy/grafana-dashboard.json` 파일을 Grafana에 import하여 사용
+
+```bash
+# Prometheus 메트릭 확인
+curl http://localhost:8080/actuator/prometheus | grep runningapp
+```
+
 <br>
 
 ## 🚀 실행 방법
@@ -776,8 +849,13 @@ Running_App/
 │       └── HealthKitManager.swift
 │
 ├── k6/                  # 부하 테스트 스크립트
-│   ├── load-test.js
+│   ├── load-test.js         # 베이스라인 테스트
+│   ├── optimized-test.js    # 최적화 후 테스트
 │   └── quick-test.js
+│
+├── deploy/              # 배포 설정
+│   ├── grafana-dashboard.json  # Grafana 대시보드
+│   └── nginx-compression.conf  # Nginx 압축 설정
 │
 └── docs/                # 문서
     ├── PERFORMANCE.md   # 성능 최적화 보고서
@@ -792,6 +870,7 @@ Running_App/
 | 문서 | 설명 |
 |------|------|
 | [PERFORMANCE.md](docs/PERFORMANCE.md) | 성능 최적화 상세 (Redis, Async, K6 결과) |
+| [PERFORMANCE-COMPARISON.md](docs/PERFORMANCE-COMPARISON.md) | K6 부하 테스트 비교 리포트 |
 | [DEPLOY_NCP.md](docs/DEPLOY_NCP.md) | NCP 배포 가이드 |
 | [HTTPS_SETUP.md](docs/HTTPS_SETUP.md) | Nginx + Let's Encrypt 설정 |
 | [PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md) | 프로젝트 상세 설명 |
