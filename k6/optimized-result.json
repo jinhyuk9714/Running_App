@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-02-04T17:02:13.692Z",
+  "phase": "OPTIMIZED",
+  "testDuration": "213s",
+  "totalRequests": 19211,
+  "maxVUs": 100,
+  "responseTime": {
+    "avg": "14.97ms",
+    "p95": "71.77ms",
+    "max": "110.59ms"
+  },
+  "errorRate": "0.00%",
+  "throughput": "90.16 req/s",
+  "endpoints": {
+    "login": "70.88ms",
+    "activities": "1.29ms",
+    "summary": "0.94ms",
+    "challenges": "0.98ms",
+    "plans": "1.03ms"
+  }
+}
