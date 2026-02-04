@@ -1,5 +1,6 @@
 package com.runningapp.service;
 
+import com.runningapp.config.BusinessMetrics;
 import com.runningapp.domain.User;
 import com.runningapp.dto.auth.AuthResponse;
 import com.runningapp.dto.auth.LoginRequest;
@@ -39,6 +40,9 @@ class AuthServiceTest {
 
     @Mock
     private JwtUtil jwtUtil;
+
+    @Mock
+    private BusinessMetrics metrics;
 
     @InjectMocks
     private AuthService authService;

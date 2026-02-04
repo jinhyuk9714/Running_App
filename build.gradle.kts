@@ -51,6 +51,9 @@ dependencies {
     // Structured Logging: JSON 포맷 (ELK 연동 가능)
     implementation("net.logstash.logback:logstash-logback-encoder:7.4")
 
+    // Prometheus 메트릭: Micrometer + Prometheus Registry
+    implementation("io.micrometer:micrometer-registry-prometheus")
+
     // Lombok: @Getter, @Builder 등 보일러플레이트 제거
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")

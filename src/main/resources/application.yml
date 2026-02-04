@@ -50,15 +50,32 @@ jwt:
   secret: running-app-secret-key-for-jwt-token-generation-minimum-256-bits
   expiration-ms: 86400000 # 24시간
 
-# Actuator: Health 체크 (배포/로드밸런서용)
+# =============================================================================
+# Actuator & Prometheus 메트릭
+# - /actuator/health: 헬스 체크
+# - /actuator/prometheus: Prometheus 스크래핑 엔드포인트
+# - /actuator/metrics: 메트릭 조회
+# =============================================================================
 management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,prometheus,metrics,info
   endpoint:
     health:
-      show-details: when_authorized # 인증 시에만 상세(DB 등) 노출
+      show-details: when_authorized
+    prometheus:
+      enabled: true
+  # Prometheus 메트릭 설정
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  # 메트릭 태그 (앱 이름, 환경 구분)
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      environment: ${SPRING_PROFILES_ACTIVE:local}
 
 # Swagger
 springdoc:

@@ -44,7 +44,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/challenges").permitAll()  // 진행중 챌린지 목록 공개
                         .requestMatchers(HttpMethod.GET, "/api/plans").permitAll()  // 플랜 목록 공개
                         .requestMatchers(HttpMethod.GET, "/api/plans/*/schedule").permitAll()  // 주차별 스케줄 공개
-                        .requestMatchers("/actuator/health/**").permitAll()
+                        .requestMatchers("/actuator/**").permitAll()  // 메트릭, 헬스체크
                         .requestMatchers("/swagger-ui/**", "/api-docs/**", "/h2-console/**").permitAll()
                         .requestMatchers("/api/**").authenticated()  // 나머지 API는 인증 필수
                         .anyRequest().authenticated()
