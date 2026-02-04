@@ -118,7 +118,7 @@ flowchart TB
     ActivityS -->|Publish Event| EventPub
     EventPub -.->|Async| Events
     Services --> PostgreSQL
-    Services -->|@Cacheable| Redis
+    Services -->|Cacheable| Redis
     Schedulers --> Services
 ```
 
