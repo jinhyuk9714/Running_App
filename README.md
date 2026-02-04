@@ -66,69 +66,232 @@
 
 ## 🏗 시스템 아키텍처
 
+```mermaid
+flowchart TB
+    subgraph Client["Client Layer"]
+        React["React Web<br/>(Vite + TypeScript)"]
+        iOS["iOS App<br/>(SwiftUI)"]
+        Swagger["Swagger UI"]
+    end
+
+    subgraph Infra["Infrastructure"]
+        Nginx["Nginx<br/>Reverse Proxy + SSL"]
+    end
+
+    subgraph Spring["Spring Boot Application"]
+        subgraph Controllers["Controllers"]
+            AuthC["AuthController"]
+            ActivityC["ActivityController"]
+            ChallengeC["ChallengeController"]
+            PlanC["PlanController"]
+        end
+
+        subgraph Services["Service Layer"]
+            AuthS["AuthService"]
+            ActivityS["RunningActivityService"]
+            ChallengeS["ChallengeService"]
+            PlanS["TrainingPlanService"]
+            EventPub["ApplicationEventPublisher"]
+        end
+
+        subgraph Events["Event Listeners (@Async)"]
+            UserLevelL["UserLevelListener"]
+            ChallengeL["ChallengeProgressListener"]
+            PlanL["TrainingPlanListener"]
+        end
+
+        subgraph Schedulers["Schedulers"]
+            SchedC["ChallengeScheduler<br/>매일 00:05"]
+            SchedS["StatsAggregationScheduler<br/>매주 월 00:30"]
+            SchedW["CacheWarmupScheduler<br/>5분마다"]
+        end
+    end
+
+    subgraph Data["Data Layer"]
+        PostgreSQL[("PostgreSQL<br/>NCP Cloud DB")]
+        Redis[("Redis<br/>Cache Store")]
+    end
+
+    React & iOS & Swagger -->|HTTPS| Nginx
+    Nginx -->|:8080| Controllers
+    Controllers --> Services
+    ActivityS -->|Publish Event| EventPub
+    EventPub -.->|Async| Events
+    Services --> PostgreSQL
+    Services -->|@Cacheable| Redis
+    Schedulers --> Services
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                           Client Layer                               │
-├─────────────┬─────────────┬─────────────────────────────────────────┤
-│  React Web  │   iOS App   │              Swagger UI                 │
-│  (Vite)     │  (SwiftUI)  │            (API 문서)                   │
-└──────┬──────┴──────┬──────┴─────────────────┬───────────────────────┘
-       │             │                        │
-       └─────────────┼────────────────────────┘
-                     │ HTTPS
-                     ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                    Nginx (Reverse Proxy)                            │
-│                    Let's Encrypt SSL                                │
-└─────────────────────────────┬───────────────────────────────────────┘
-                              │ :8080
-                              ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                      Spring Boot Application                         │
-├─────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌────────────┐ │
-│  │   Auth      │  │  Activity   │  │  Challenge  │  │    Plan    │ │
-│  │ Controller  │  │ Controller  │  │ Controller  │  │ Controller │ │
-│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └─────┬──────┘ │
-│         │                │                │                │        │
-│         └────────────────┼────────────────┼────────────────┘        │
-│                          ▼                                          │
-│  ┌──────────────────────────────────────────────────────────────┐  │
-│  │                     Service Layer                             │  │
-│  │  ┌─────────────────────────────────────────────────────────┐ │  │
-│  │  │              ApplicationEventPublisher                   │ │  │
-│  │  │    (ActivityCompleted / Updated / Deleted Events)        │ │  │
-│  │  └────────────────────────┬────────────────────────────────┘ │  │
-│  └───────────────────────────┼──────────────────────────────────┘  │
-│                              │                                      │
-│         ┌────────────────────┼────────────────────┐                │
-│         ▼                    ▼                    ▼                │
-│  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐          │
-│  │ UserLevel   │     │ Challenge   │     │TrainingPlan │  @Async  │
-│  │ Listener    │     │ Listener    │     │ Listener    │ @Retryable│
-│  └─────────────┘     └─────────────┘     └─────────────┘          │
-│                                                                     │
-│  ┌──────────────────────────────────────────────────────────────┐  │
-│  │                      Scheduler                                │  │
-│  │  • ChallengeScheduler (매일 00:05 - 만료 처리)               │  │
-│  │  • StatsAggregationScheduler (매주 월 00:30 - 통계 집계)     │  │
-│  │  • CacheWarmupScheduler (5분마다 - 캐시 워밍업)              │  │
-│  └──────────────────────────────────────────────────────────────┘  │
-└───────────────┬─────────────────────────────┬───────────────────────┘
-                │                             │
-                ▼                             ▼
-┌───────────────────────────┐   ┌───────────────────────────┐
-│      PostgreSQL           │   │          Redis            │
-│   (NCP Cloud DB)          │   │     (Cache Store)         │
-│                           │   │                           │
-│  • User                   │   │  • activitySummary (5m)   │
-│  • RunningActivity        │   │  • activityStats (5m)     │
-│  • Challenge              │   │  • activeChallenges (10m) │
-│  • UserChallenge          │   │  • plans (30m)            │
-│  • TrainingPlan           │   │  • planSchedule (1h)      │
-│  • PlanWeek               │   │                           │
-│  • UserPlan               │   │                           │
-└───────────────────────────┘   └───────────────────────────┘
+
+<br>
+
+## 📊 ERD (Entity Relationship Diagram)
+
+```mermaid
+erDiagram
+    USER {
+        Long id PK
+        String email UK
+        String password
+        String nickname
+        Double weight
+        Double height
+        Integer level
+        Double totalDistance
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    RUNNING_ACTIVITY {
+        Long id PK
+        Long userId FK
+        Double distance
+        Integer duration
+        Integer averagePace
+        Integer calories
+        Integer averageHeartRate
+        Integer cadence
+        JSON route
+        DateTime startedAt
+        String memo
+        DateTime createdAt
+    }
+
+    CHALLENGE {
+        Long id PK
+        String name
+        String description
+        Double targetDistance
+        Integer targetCount
+        Date startDate
+        Date endDate
+        Enum type
+        Integer recommendedMinLevel
+        DateTime createdAt
+    }
+
+    USER_CHALLENGE {
+        Long id PK
+        Long userId FK
+        Long challengeId FK
+        Double currentDistance
+        Integer currentCount
+        DateTime completedAt
+        DateTime joinedAt
+    }
+
+    TRAINING_PLAN {
+        Long id PK
+        String name
+        String description
+        Enum goalType
+        Enum difficulty
+        Integer totalWeeks
+        Integer totalRuns
+        DateTime createdAt
+    }
+
+    PLAN_WEEK {
+        Long id PK
+        Long planId FK
+        Integer weekNumber
+        Double targetDistance
+        Integer targetRuns
+        String description
+    }
+
+    USER_PLAN {
+        Long id PK
+        Long userId FK
+        Long planId FK
+        DateTime startedAt
+        Integer currentWeek
+        DateTime completedAt
+    }
+
+    USER ||--o{ RUNNING_ACTIVITY : "records"
+    USER ||--o{ USER_CHALLENGE : "joins"
+    USER ||--o{ USER_PLAN : "enrolls"
+    CHALLENGE ||--o{ USER_CHALLENGE : "has participants"
+    TRAINING_PLAN ||--o{ PLAN_WEEK : "contains"
+    TRAINING_PLAN ||--o{ USER_PLAN : "has enrollments"
+```
+
+<br>
+
+## 🔄 시퀀스 다이어그램
+
+### 활동 저장 (이벤트 기반 비동기 처리)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client
+    participant Controller as ActivityController
+    participant Service as RunningActivityService
+    participant EventPub as EventPublisher
+    participant DB as PostgreSQL
+    participant Listener1 as UserLevelListener
+    participant Listener2 as ChallengeListener
+    participant Listener3 as PlanListener
+
+    Client->>Controller: POST /api/activities
+    Controller->>Service: create(request)
+    Service->>DB: save(activity)
+    DB-->>Service: activity (saved)
+
+    Service->>EventPub: publishEvent(ActivityCompletedEvent)
+    Service-->>Controller: ActivityResponse
+    Controller-->>Client: 201 Created (~5ms)
+
+    Note over EventPub,Listener3: 비동기 처리 (Background)
+
+    par Async Event Processing
+        EventPub-)Listener1: handleActivityCompleted
+        Listener1->>DB: updateUserLevel()
+    and
+        EventPub-)Listener2: handleActivityCompleted
+        Listener2->>DB: updateChallengeProgress()
+    and
+        EventPub-)Listener3: handleActivityCompleted
+        Listener3->>DB: updatePlanProgress()
+    end
+```
+
+### 인증 흐름 (JWT)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client
+    participant Filter as JwtAuthFilter
+    participant Controller as AuthController
+    participant Service as AuthService
+    participant DB as PostgreSQL
+
+    rect rgb(240, 248, 255)
+        Note over Client,DB: 로그인
+        Client->>Controller: POST /api/auth/login
+        Controller->>Service: login(email, password)
+        Service->>DB: findByEmail()
+        DB-->>Service: User
+        Service->>Service: verifyPassword()
+        Service->>Service: generateJWT()
+        Service-->>Controller: JWT Token
+        Controller-->>Client: 200 OK + Token
+    end
+
+    rect rgb(255, 248, 240)
+        Note over Client,DB: 인증된 요청
+        Client->>Filter: GET /api/activities (Bearer Token)
+        Filter->>Filter: validateToken()
+        Filter->>Filter: setAuthentication()
+        Filter->>Controller: request + userId
+        Controller->>Service: getActivities(userId)
+        Service->>DB: findByUserId()
+        DB-->>Service: List<Activity>
+        Service-->>Controller: activities
+        Controller-->>Client: 200 OK + data
+    end
 ```
 
 <br>
@@ -162,23 +325,29 @@
 
 ### 이벤트 기반 아키텍처의 이점
 
+```mermaid
+flowchart LR
+    subgraph Before["Before (동기) ~100ms"]
+        direction LR
+        B1[POST /activities] --> B2[Save]
+        B2 --> B3[Level Update]
+        B3 --> B4[Challenge Update]
+        B4 --> B5[Plan Update]
+        B5 --> B6[Response]
+    end
 ```
-Before (동기)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-POST /activities → Save → Level → Challenge → Plan → Response
-                         ├────── 동기 처리 대기 ──────┤
-                                                    ~100ms
 
-After (비동기)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-POST /activities → Save → Publish Event → Response  (~5ms)
-                                │
-                                ▼ (Async)
-                    ┌───────────┴───────────┐
-                    │ Level    Challenge    │
-                    │ Listener  Listener    │ 백그라운드 처리
-                    │      Plan Listener    │
-                    └───────────────────────┘
+```mermaid
+flowchart LR
+    subgraph After["After (비동기) ~5ms"]
+        direction LR
+        A1[POST /activities] --> A2[Save]
+        A2 --> A3[Publish Event]
+        A3 --> A4[Response]
+        A3 -.->|Async| A5[Level Listener]
+        A3 -.->|Async| A6[Challenge Listener]
+        A3 -.->|Async| A7[Plan Listener]
+    end
 ```
 
 **장점**
