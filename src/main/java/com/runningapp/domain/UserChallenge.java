@@ -79,4 +79,11 @@ public class UserChallenge {
             return target != null && currentCount >= target;
         }
     }
+
+    /** 만료 처리 (기간 종료 시 미완료 상태로 마감) */
+    public void markExpired() {
+        if (this.completedAt == null) {
+            this.completedAt = LocalDateTime.now();
+        }
+    }
 }

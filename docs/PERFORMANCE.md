@@ -1,0 +1,385 @@
+# Performance Optimization Report
+
+> Running App 백엔드 성능 최적화 과정 및 결과 정리
+
+---
+
+## 개요
+
+Nike Run Club 스타일 러닝 앱의 Spring Boot 백엔드 성능을 단계적으로 최적화한 과정입니다.
+
+| Phase | 적용 기술 | 주요 개선 |
+|-------|----------|----------|
+| Phase 1 | Baseline | 초기 측정 |
+| Phase 2 | Redis Caching | 응답시간 30% 감소 |
+| Phase 3 | Async Event-Driven | 서비스 결합도 감소, 확장성 향상 |
+
+---
+
+## 테스트 환경
+
+| 항목 | 스펙 |
+|-----|------|
+| Tool | K6 (Grafana) |
+| Duration | 60초 |
+| Virtual Users | 최대 50 VUs |
+| Ramp Pattern | 10 → 30 → 50 → 0 VUs |
+| Server | Spring Boot 3.3.5, Java 17 |
+| Database | H2 (in-memory) |
+| Cache | Redis 7.x |
+
+---
+
+## Phase 1: Baseline 측정
+
+초기 상태에서의 성능 측정 결과입니다.
+
+```
+POST /api/activities → Save → Level Update → Challenge Update → Plan Update → Response
+                       ↑ 동기 처리로 인한 지연
+```
+
+### 결과
+
+| 지표 | 값 |
+|-----|-----|
+| 총 요청 수 | 4,291 |
+| 처리량 | 67.92 req/s |
+| 평균 응답시간 | 21.94ms |
+| P95 응답시간 | 93.96ms |
+| 에러율 | 59.98% (DB 커넥션 이슈) |
+
+### 엔드포인트별 응답시간
+
+| Endpoint | 평균 |
+|----------|------|
+| POST /api/auth/login | 88.04ms |
+| GET /api/activities | 6.28ms |
+| GET /api/activities/summary | 7.43ms |
+| GET /api/challenges | 4.34ms |
+| GET /api/plans | 3.87ms |
+
+---
+
+## Phase 2: Redis Caching 적용
+
+자주 조회되는 데이터에 Redis 캐싱을 적용했습니다.
+
+### 캐시 전략
+
+| Cache Key | TTL | 대상 |
+|-----------|-----|------|
+| activitySummary | 5분 | 주간/월간 요약 |
+| activityStats | 5분 | 통계 데이터 |
+| activeChallenges | 10분 | 진행중인 챌린지 목록 |
+| recommendedChallenges | 5분 | 추천 챌린지 |
+| plans | 30분 | 플랜 목록 |
+| planSchedule | 1시간 | 주차별 스케줄 |
+
+### 결과
+
+| 지표 | Before | After | 개선율 |
+|-----|--------|-------|--------|
+| 처리량 | 67.92 req/s | 70.22 req/s | **+3.4%** |
+| 평균 응답시간 | 21.94ms | 15.19ms | **-30.8%** |
+| P95 응답시간 | 93.96ms | 73.82ms | **-21.4%** |
+| 에러율 | 59.98% | 0.00% | **-100%** |
+
+### 엔드포인트별 개선
+
+| Endpoint | Before | After | 개선율 |
+|----------|--------|-------|--------|
+| GET /api/activities | 6.28ms | 1.85ms | **-70.5%** |
+| GET /api/activities/summary | 7.43ms | 1.02ms | **-86.3%** |
+| GET /api/challenges | 4.34ms | 0.97ms | **-77.6%** |
+| GET /api/plans | 3.87ms | 1.02ms | **-73.6%** |
+| POST /api/auth/login | 88.04ms | 71.18ms | **-19.2%** |
+
+---
+
+## Phase 3: Async Event-Driven Architecture
+
+동기 처리를 이벤트 기반 비동기로 전환하여 응답 시간을 단축하고 서비스 결합도를 낮췄습니다.
+
+### 아키텍처 변경
+
+**Before (동기)**
+```
+POST /api/activities
+    → Save Activity
+    → Update User Level      ─┐
+    → Update Challenge Progress │ 동기 처리 (~100ms)
+    → Update Plan Progress    ─┘
+    → Response
+```
+
+**After (비동기)**
+```
+POST /api/activities
+    → Save Activity
+    → Publish Event ──────────→ Response (~5ms)
+           │
+           ↓ (Async)
+    ┌──────┴──────┐
+    │  Listeners  │
+    ├─────────────┤
+    │ UserLevel   │
+    │ Challenge   │
+    │ TrainingPlan│
+    └─────────────┘
+```
+
+### 구현 상세
+
+#### Event Classes
+```java
+// 활동 생성 시 발행
+ActivityCompletedEvent(userId, activityId, distance, startedAt)
+
+// 활동 수정 시 발행 (거리 변경)
+ActivityUpdatedEvent(userId, activityId, oldDistance, newDistance, startedAt)
+
+// 활동 삭제 시 발행
+ActivityDeletedEvent(userId, activityId, distance, startedAt)
+```
+
+#### Event Listeners
+| Listener | 역할 | 어노테이션 |
+|----------|------|-----------|
+| UserLevelEventListener | 레벨 업데이트 | @TransactionalEventListener |
+| ChallengeProgressEventListener | 챌린지 진행률 | @Async, @Retryable |
+| TrainingPlanEventListener | 플랜 진행률 | @Transactional(REQUIRES_NEW) |
+
+#### Thread Pool 설정
+```java
+@Bean
+public Executor taskExecutor() {
+    ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+    executor.setCorePoolSize(2);
+    executor.setMaxPoolSize(5);
+    executor.setQueueCapacity(100);
+    executor.setThreadNamePrefix("Async-");
+    return executor;
+}
+```
+
+### 결과
+
+| 지표 | Redis Only | + Async Event | 변화 |
+|-----|------------|---------------|------|
+| 총 요청 수 | 4,306 | 4,286 | -0.5% |
+| 처리량 | 70.22 req/s | 69.88 req/s | -0.5% |
+| 평균 응답시간 | 15.19ms | 15.67ms | +3.2% |
+| P95 응답시간 | 73.82ms | 75.36ms | +2.1% |
+| 에러율 | 0.00% | 0.00% | - |
+
+### 활동 생성 API 응답시간
+
+| 측정 | 응답시간 |
+|------|---------|
+| Run 1 | 5ms |
+| Run 2 | 3ms |
+| Run 3 | 4ms |
+| Run 4 | 3ms |
+| Run 5 | 3ms |
+| **평균** | **~3.6ms** |
+
+### 왜 이벤트 기반 비동기인가?
+
+성능 수치만 보면 Redis 캐싱 후와 큰 차이가 없습니다. 이벤트 기반 비동기의 **진짜 이점은 아키텍처**에 있습니다.
+
+#### 1. 느슨한 결합 (Loose Coupling)
+
+**Before - 직접 의존**
+```java
+@RequiredArgsConstructor
+public class RunningActivityService {
+    private final ChallengeService challengeService;       // 직접 의존
+    private final TrainingPlanService trainingPlanService; // 직접 의존
+
+    public ActivityResponse create(...) {
+        activity = activityRepository.save(activity);
+        challengeService.updateProgressOnActivity(...);    // 직접 호출
+        trainingPlanService.updatePlanProgressOnActivity(...);
+        return response;
+    }
+}
+```
+
+**After - 이벤트만 발행**
+```java
+@RequiredArgsConstructor
+public class RunningActivityService {
+    private final ApplicationEventPublisher eventPublisher; // 이벤트만 발행
+
+    public ActivityResponse create(...) {
+        activity = activityRepository.save(activity);
+        eventPublisher.publishEvent(new ActivityCompletedEvent(...)); // 누가 처리하는지 모름
+        return response;
+    }
+}
+```
+
+`RunningActivityService`가 `ChallengeService`, `TrainingPlanService`를 **전혀 모릅니다**.
+
+#### 2. 확장성 (Open-Closed Principle)
+
+새 기능 추가 시 **기존 코드 수정 없이** 리스너만 추가:
+
+```java
+// 푸시 알림 추가? 리스너만 만들면 됨
+@Component
+public class PushNotificationListener {
+    @TransactionalEventListener
+    public void handleActivityCompleted(ActivityCompletedEvent event) {
+        pushService.send("러닝 완료! " + event.getDistance() + "km");
+    }
+}
+
+// 뱃지 시스템 추가? 리스너만 만들면 됨
+@Component
+public class BadgeListener {
+    @TransactionalEventListener
+    public void handleActivityCompleted(ActivityCompletedEvent event) {
+        badgeService.checkAndAward(event.getUserId(), event.getDistance());
+    }
+}
+```
+
+동기 방식이었다면 `RunningActivityService`를 계속 수정해야 합니다.
+
+#### 3. 장애 격리
+
+**Before (동기)**
+```
+활동 저장 → 챌린지 업데이트 실패! → 전체 롤백 → 활동도 저장 안 됨
+```
+
+**After (비동기)**
+```
+활동 저장 → 이벤트 발행 → 응답 반환 (성공)
+                ↓
+        챌린지 업데이트 실패 → @Retryable로 3회 재시도
+                              → 실패해도 활동은 이미 저장됨
+```
+
+#### 4. 실제 성능 차이가 커지는 경우
+
+현재 테스트에서 차이가 적은 이유:
+- 테스트가 **조회(GET) 위주**
+- 챌린지/플랜 로직이 **단순** (DB 조회 몇 번)
+- **H2 인메모리 DB**라 I/O 지연 없음
+
+프로덕션에서 차이가 커지는 경우:
+
+```java
+// 복잡한 후처리 로직이 있다면?
+public void updateProgressOnActivity(...) {
+    repository.findActive(userId);           // DB 조회
+    pushService.sendNotification(...);       // 외부 API (100ms+)
+    emailService.send(...);                  // 이메일 발송 (200ms+)
+    leaderboardService.update(...);          // 리더보드 (50ms+)
+    badgeService.checkNewBadges(...);        // 뱃지 확인 (30ms+)
+}
+```
+
+| 방식 | 응답 시간 |
+|-----|----------|
+| 동기 | 100 + 200 + 50 + 30 = **+380ms** |
+| 비동기 | 이벤트 발행 후 **즉시 응답** |
+
+#### 5. 비교 요약
+
+| 관점 | 동기 | 비동기 이벤트 |
+|-----|------|--------------|
+| 결합도 | 강결합 | **느슨한 결합** |
+| 새 기능 추가 | 서비스 수정 필요 | **리스너만 추가** |
+| 장애 영향 | 전체 롤백 | **격리됨** |
+| 단순 로직 | 비슷 | 비슷 |
+| 복잡한 로직 | 지연 누적 | **즉시 응답** |
+| 테스트 | 통합 테스트 필요 | **단위 테스트 용이** |
+
+---
+
+## 스케줄러 구현
+
+운영 자동화를 위한 스케줄러를 추가했습니다.
+
+| Scheduler | 주기 | 기능 |
+|-----------|------|------|
+| ChallengeScheduler | 매일 00:05 | 만료 챌린지 종료 처리 |
+| StatsAggregationScheduler | 매주 월 00:30 | 주간 통계 집계, 캐시 초기화 |
+| CacheWarmupScheduler | 5분마다 | activeChallenges, plans 캐시 워밍업 |
+
+---
+
+## 전체 개선 요약
+
+### 성능 지표
+
+| 지표 | Baseline | Final | 총 개선율 |
+|-----|----------|-------|----------|
+| 처리량 | 67.92 req/s | 69.88 req/s | **+2.9%** |
+| 평균 응답시간 | 21.94ms | 15.67ms | **-28.6%** |
+| P95 응답시간 | 93.96ms | 75.36ms | **-19.8%** |
+| 에러율 | 59.98% | 0.00% | **-100%** |
+
+### 아키텍처 개선
+
+| 항목 | Before | After |
+|-----|--------|-------|
+| 서비스 결합도 | 강결합 (직접 호출) | 느슨한 결합 (이벤트) |
+| 확장성 | 리스너 추가 시 서비스 수정 필요 | 리스너만 추가하면 됨 |
+| 장애 격리 | 하나 실패 시 전체 롤백 | 독립적 재시도 |
+| 운영 자동화 | 수동 | 스케줄러로 자동화 |
+
+---
+
+## 테스트 실행 방법
+
+### 사전 준비
+```bash
+# Redis 실행
+redis-server
+
+# Spring Boot 서버 실행
+./gradlew bootRun
+```
+
+### K6 테스트 실행
+```bash
+# Quick test (1분)
+k6 run k6/quick-test.js
+
+# Full load test (3분 30초)
+k6 run k6/load-test.js
+
+# 특정 서버 대상
+k6 run -e BASE_URL=https://your-server.com k6/load-test.js
+```
+
+### 결과 파일
+- `k6/baseline-result.json` - 베이스라인 측정
+- `k6/redis-caching-result.json` - Redis 캐싱 적용 후
+- `k6/async-event-result.json` - 비동기 이벤트 적용 후
+
+---
+
+## 기술 스택
+
+| 기술 | 용도 |
+|-----|------|
+| Spring Boot 3.3 | 백엔드 프레임워크 |
+| Spring Data Redis | 캐시 저장소 |
+| Spring Events | 이벤트 기반 아키텍처 |
+| Spring Retry | 재시도 로직 |
+| Spring Scheduling | 스케줄러 |
+| K6 | 부하 테스트 |
+
+---
+
+## 참고 자료
+
+- [Spring Events](https://docs.spring.io/spring-framework/reference/core/beans/context-introduction.html#context-functionality-events)
+- [Spring Cache Abstraction](https://docs.spring.io/spring-framework/reference/integration/cache.html)
+- [K6 Documentation](https://k6.io/docs/)

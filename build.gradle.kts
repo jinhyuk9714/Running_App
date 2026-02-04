@@ -29,6 +29,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-cache")
 
+    // Spring Retry (비동기 이벤트 리스너 재시도)
+    implementation("org.springframework.retry:spring-retry")
+    implementation("org.springframework:spring-aspects")
+
     // Database: H2(개발), PostgreSQL(프로덕션)
     runtimeOnly("com.h2database:h2")
     runtimeOnly("org.postgresql:postgresql")

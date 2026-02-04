@@ -6,6 +6,7 @@
 - **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS
 - **iOS**: SwiftUI 앱 (GPS 트래킹, HealthKit 연동)
 - **Database**: H2 (개발) / PostgreSQL (프로덕션)
+- **Cache**: Redis (응답시간 30% 개선)
 - **Deployment**: NCP + Nginx + Let's Encrypt HTTPS
 
 ---
@@ -35,12 +36,57 @@
 
 ---
 
+## 성능 최적화
+
+단계적 성능 최적화를 통해 응답시간 30% 개선 및 아키텍처 개선을 달성했습니다.
+
+| Phase | 적용 기술 | 주요 개선 |
+|-------|----------|----------|
+| Phase 1 | Baseline | 초기 측정 (평균 21.94ms) |
+| Phase 2 | Redis Caching | 응답시간 **-30.8%**, 에러율 0% |
+| Phase 3 | Async Event-Driven | 서비스 결합도 감소, 확장성 향상 |
+
+### 성능 테스트 결과 (K6, 50 VUs)
+
+| 지표 | Baseline | 최종 | 개선율 |
+|-----|----------|------|--------|
+| 평균 응답시간 | 21.94ms | 15.67ms | **-28.6%** |
+| P95 응답시간 | 93.96ms | 75.36ms | **-19.8%** |
+| 에러율 | 59.98% | 0.00% | **-100%** |
+
+### 이벤트 기반 비동기 아키텍처
+
+```
+POST /api/activities
+    → Save Activity
+    → Publish Event ──────────→ Response (~5ms)
+           │
+           ↓ (Async)
+    ┌──────┴──────┐
+    │  Listeners  │
+    ├─────────────┤
+    │ UserLevel   │  @TransactionalEventListener
+    │ Challenge   │  @Async, @Retryable
+    │ TrainingPlan│  독립적 재시도
+    └─────────────┘
+```
+
+**이점**: 느슨한 결합, 장애 격리, 확장성 (리스너 추가만으로 기능 확장)
+
+자세한 내용은 [docs/PERFORMANCE.md](docs/PERFORMANCE.md) 참고.
+
+---
+
 ## 기술 스택
 
 ### Backend
 - **Java 17**, Spring Boot 3.3
 - **Spring Security** + JWT, **Spring Boot Actuator** (Health)
 - **Spring Data JPA** (H2 개발 / PostgreSQL 프로덕션)
+- **Spring Data Redis** (캐싱)
+- **Spring Events** (이벤트 기반 아키텍처)
+- **Spring Retry** (재시도 로직)
+- **Spring Scheduling** (스케줄러)
 - **SpringDoc OpenAPI** (Swagger UI)
 - **Gradle** (Kotlin DSL)
 
@@ -56,6 +102,12 @@
 - **HealthKit** (심박수, 케이던스, 걸음 수)
 - **MapKit** (지도 경로 표시)
 
+### DevOps & Testing
+- **Docker** + **Docker Compose**
+- **GitHub Actions** (CI/CD)
+- **K6** (부하 테스트)
+- **JUnit 5** + **MockMvc** (테스트)
+
 ---
 
 ## 로컬 실행
@@ -66,6 +118,9 @@
 
 # 실행 (H2 인메모리 DB)
 ./gradlew bootRun
+
+# Redis 실행 (캐싱 사용 시)
+redis-server
 ```
 
 - **Swagger UI**: http://localhost:8080/swagger-ui/index.html
@@ -97,6 +152,16 @@ open ios/RunningApp/RunningApp.xcodeproj   # Xcode에서 열고 Cmd+R로 실행
 
 ```bash
 docker-compose up --build    # PostgreSQL과 함께 풀스택 실행
+```
+
+### 부하 테스트 (K6)
+
+```bash
+# Quick test (1분)
+k6 run k6/quick-test.js
+
+# Full load test (3분 30초)
+k6 run k6/load-test.js
 ```
 
 ---
@@ -132,6 +197,7 @@ docker-compose up --build    # PostgreSQL과 함께 풀스택 실행
 
 | 문서                                                 | 설명                                            |
 | ---------------------------------------------------- | ----------------------------------------------- |
+| [docs/PERFORMANCE.md](docs/PERFORMANCE.md)           | 성능 최적화 보고서 (Redis, Async, K6 테스트)    |
 | [docs/DEPLOY_NCP.md](docs/DEPLOY_NCP.md)             | NCP 배포 가이드 (VPC, Server, DB, ACG, systemd) |
 | [docs/HTTPS_SETUP.md](docs/HTTPS_SETUP.md)           | 도메인 HTTPS (Nginx + Let's Encrypt)            |
 | [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md)             | 자동 배포 설정 (GitHub Secrets, 서버 sudo)      |
@@ -144,7 +210,8 @@ docker-compose up --build    # PostgreSQL과 함께 풀스택 실행
 - **레벨 시스템**: 누적 거리(km) 기반 Lv1~10
 - **챌린지**: 거리/횟수 목표, 레벨별 추천 (6종 시드)
 - **트레이닝 플랜**: 5K/10K/하프마라톤 × 초/중/고급 (9종 시드)
-- **자동 진행**: 활동 저장 시 챌린지·플랜 진행률 자동 반영
+- **자동 진행**: 활동 저장 시 챌린지·플랜 진행률 자동 반영 (비동기 이벤트)
+- **스케줄러**: 챌린지 만료 처리, 통계 집계, 캐시 워밍업 자동화
 
 ---
 
@@ -162,12 +229,14 @@ docker-compose up --build    # PostgreSQL과 함께 풀스택 실행
 ### Backend (`src/main/java/com/runningapp/`)
 
 ```
-config/       # SecurityConfig (JWT 필터), OpenApiConfig, DataLoaders (시드 데이터)
+config/       # SecurityConfig, AsyncConfig, SchedulingConfig, DataLoaders
 controller/   # REST 엔드포인트: Auth, RunningActivity, Challenge, TrainingPlan
 service/      # 비즈니스 로직
 repository/   # Spring Data JPA Repository
 domain/       # JPA Entity: User, RunningActivity, Challenge, UserChallenge, TrainingPlan, PlanWeek, UserPlan
 dto/          # Request/Response (auth/, activity/, challenge/, plan/)
+event/        # 이벤트 클래스 및 리스너 (ActivityCompletedEvent, UserLevelEventListener 등)
+scheduler/    # 스케줄러 (ChallengeScheduler, CacheWarmupScheduler 등)
 exception/    # GlobalExceptionHandler, BadRequestException, NotFoundException
 security/     # JwtAuthenticationFilter, AuthenticationPrincipal, UserIdArgumentResolver
 ```

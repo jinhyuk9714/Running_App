@@ -16,4 +16,7 @@ public interface ChallengeRepository extends JpaRepository<Challenge, Long> {
     /** 진행중인 챌린지 (start_date <= today <= end_date) */
     @Query("SELECT c FROM Challenge c WHERE c.startDate <= :date AND c.endDate >= :date ORDER BY c.startDate DESC")
     List<Challenge> findActiveByDate(@Param("date") LocalDate date);
+
+    /** 종료일이 특정 날짜 이전인 챌린지 (만료 처리용) */
+    List<Challenge> findByEndDateBefore(LocalDate date);
 }

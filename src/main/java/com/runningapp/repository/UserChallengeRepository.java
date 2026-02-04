@@ -25,4 +25,7 @@ public interface UserChallengeRepository extends JpaRepository<UserChallenge, Lo
            "WHERE uc.user.id = :userId AND uc.completedAt IS NULL " +
            "AND c.startDate <= CURRENT_DATE AND c.endDate >= CURRENT_DATE")
     List<UserChallenge> findActiveByUserId(@Param("userId") Long userId);
+
+    /** 특정 챌린지의 미완료 참여자 (만료 처리용) */
+    List<UserChallenge> findByChallengeIdAndCompletedAtIsNull(Long challengeId);
 }

@@ -1,0 +1,56 @@
+{
+  "phase": "ASYNC_EVENT_DRIVEN",
+  "testDate": "2026-02-04",
+  "description": "비동기 이벤트 기반 아키텍처 적용 후 성능 테스트",
+  "configuration": {
+    "duration": "61s",
+    "maxVUs": 50,
+    "asyncEnabled": true,
+    "threadPool": "2-5 threads",
+    "eventListeners": ["UserLevelEventListener", "ChallengeProgressEventListener", "TrainingPlanEventListener"]
+  },
+  "results": {
+    "totalRequests": 4286,
+    "throughput": "69.88 req/s",
+    "responseTime": {
+      "avg": "15.67ms",
+      "p95": "75.36ms",
+      "max": "129.58ms"
+    },
+    "errorRate": "0.00%",
+    "endpointResponseTimes": {
+      "login": "73.64ms",
+      "activities": "1.55ms",
+      "summary": "1.01ms",
+      "challenges": "1.16ms",
+      "plans": "1.18ms"
+    },
+    "activityCreation": {
+      "avg": "3-5ms",
+      "note": "이벤트 발행 후 즉시 응답, 레벨/챌린지/플랜 업데이트는 비동기 처리"
+    }
+  },
+  "comparison": {
+    "redisCaching": {
+      "throughput": "70.22 req/s",
+      "avgResponse": "15.19ms",
+      "p95Response": "73.82ms",
+      "activities": "1.85ms",
+      "summary": "1.02ms",
+      "challenges": "0.97ms",
+      "plans": "1.02ms"
+    },
+    "change": {
+      "throughput": "-0.5%",
+      "avgResponse": "+3.2%",
+      "p95Response": "+2.1%",
+      "note": "Redis 캐싱 성능 유지하면서 비동기 이벤트 처리 추가"
+    }
+  },
+  "benefits": {
+    "decoupling": "RunningActivityService에서 ChallengeService, TrainingPlanService 의존성 제거",
+    "responseTime": "활동 생성 시 즉시 응답 (레벨/챌린지/플랜 업데이트는 백그라운드)",
+    "scalability": "이벤트 리스너 추가/제거 용이",
+    "reliability": "@Retryable로 실패 시 자동 재시도 (3회, 1초 간격)"
+  }
+}

@@ -35,4 +35,12 @@ public interface RunningActivityRepository extends JpaRepository<RunningActivity
                                    @Param("end") LocalDateTime end);
 
     List<RunningActivity> findByUserIdAndStartedAtBetween(Long userId, LocalDateTime start, LocalDateTime end);
+
+    /** 전체 활동 수 (기간별) - 통계 집계용 */
+    @Query("SELECT COUNT(a) FROM RunningActivity a WHERE a.startedAt >= :start AND a.startedAt < :end")
+    Long countByStartedAtBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    /** 전체 거리 합계 (기간별) - 통계 집계용 */
+    @Query("SELECT COALESCE(SUM(a.distance), 0) FROM RunningActivity a WHERE a.startedAt >= :start AND a.startedAt < :end")
+    Double sumDistanceByDateRange(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 }

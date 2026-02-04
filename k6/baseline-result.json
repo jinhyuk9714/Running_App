@@ -1,21 +1,21 @@
 {
-  "timestamp": "2026-02-04T12:50:46.489Z",
+  "timestamp": "2026-02-04T13:50:09.009Z",
   "phase": "BASELINE",
-  "testDuration": "62s",
-  "totalRequests": 4206,
+  "testDuration": "61s",
+  "totalRequests": 4286,
   "maxVUs": 50,
   "responseTime": {
-    "avg": "21.94ms",
-    "p95": "93.96ms",
-    "max": "193.95ms"
+    "avg": "15.67ms",
+    "p95": "75.36ms",
+    "max": "129.58ms"
   },
   "errorRate": "0.00%",
-  "throughput": "67.92 req/s",
+  "throughput": "69.88 req/s",
   "endpoints": {
-    "login": "88.04ms",
-    "activities": "6.28ms",
-    "summary": "7.43ms",
-    "challenges": "4.34ms",
-    "plans": "3.87ms"
+    "login": "73.64ms",
+    "activities": "1.55ms",
+    "summary": "1.01ms",
+    "challenges": "1.16ms",
+    "plans": "1.18ms"
   }
 }

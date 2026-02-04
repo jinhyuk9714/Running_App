@@ -6,6 +6,9 @@ import com.runningapp.dto.activity.ActivityRequest;
 import com.runningapp.dto.activity.ActivityResponse;
 import com.runningapp.dto.activity.ActivityStatsResponse;
 import com.runningapp.dto.activity.ActivitySummaryResponse;
+import com.runningapp.event.ActivityCompletedEvent;
+import com.runningapp.event.ActivityDeletedEvent;
+import com.runningapp.event.ActivityUpdatedEvent;
 import com.runningapp.exception.NotFoundException;
 import com.runningapp.repository.RunningActivityRepository;
 import com.runningapp.repository.UserRepository;
@@ -14,9 +17,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -43,10 +48,7 @@ class RunningActivityServiceTest {
     private UserRepository userRepository;
 
     @Mock
-    private ChallengeService challengeService;
-
-    @Mock
-    private TrainingPlanService trainingPlanService;
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private RunningActivityService activityService;
@@ -113,9 +115,6 @@ class RunningActivityServiceTest {
                 setField(activity, "id", 1L);
                 return activity;
             });
-            given(userRepository.save(any(User.class))).willReturn(testUser);
-            doNothing().when(challengeService).updateProgressOnActivity(anyLong(), anyDouble(), any());
-            doNothing().when(trainingPlanService).updatePlanProgressOnActivity(anyLong(), anyDouble(), any());
 
             // when
             ActivityResponse response = activityService.create(1L, request);
@@ -127,9 +126,13 @@ class RunningActivityServiceTest {
 
             verify(userRepository).findById(1L);
             verify(activityRepository).save(any(RunningActivity.class));
-            verify(userRepository).save(testUser);
-            verify(challengeService).updateProgressOnActivity(eq(1L), eq(5.0), any());
-            verify(trainingPlanService).updatePlanProgressOnActivity(eq(1L), eq(5.0), any());
+
+            // 이벤트 발행 검증
+            ArgumentCaptor<ActivityCompletedEvent> eventCaptor = ArgumentCaptor.forClass(ActivityCompletedEvent.class);
+            verify(eventPublisher).publishEvent(eventCaptor.capture());
+            ActivityCompletedEvent event = eventCaptor.getValue();
+            assertThat(event.getUserId()).isEqualTo(1L);
+            assertThat(event.getDistance()).isEqualTo(5.0);
         }
 
         @Test
@@ -237,7 +240,6 @@ class RunningActivityServiceTest {
                     LocalDateTime.of(2025, 2, 1, 7, 0), "수정됨");
 
             given(activityRepository.findById(1L)).willReturn(Optional.of(testActivity));
-            given(userRepository.save(any(User.class))).willReturn(testUser);
 
             // when
             ActivityResponse response = activityService.update(1L, 1L, request);
@@ -245,7 +247,14 @@ class RunningActivityServiceTest {
             // then
             assertThat(response).isNotNull();
             verify(activityRepository).findById(1L);
-            verify(userRepository).save(testUser);
+
+            // 거리 변경 시 이벤트 발행 검증
+            ArgumentCaptor<ActivityUpdatedEvent> eventCaptor = ArgumentCaptor.forClass(ActivityUpdatedEvent.class);
+            verify(eventPublisher).publishEvent(eventCaptor.capture());
+            ActivityUpdatedEvent event = eventCaptor.getValue();
+            assertThat(event.getUserId()).isEqualTo(1L);
+            assertThat(event.getOldDistance()).isEqualTo(5.0);
+            assertThat(event.getNewDistance()).isEqualTo(6.0);
         }
 
         @Test
@@ -273,7 +282,6 @@ class RunningActivityServiceTest {
         void delete_success() {
             // given
             given(activityRepository.findById(1L)).willReturn(Optional.of(testActivity));
-            given(userRepository.save(any(User.class))).willReturn(testUser);
             doNothing().when(activityRepository).delete(testActivity);
 
             // when
@@ -282,7 +290,13 @@ class RunningActivityServiceTest {
             // then
             verify(activityRepository).findById(1L);
             verify(activityRepository).delete(testActivity);
-            verify(userRepository).save(testUser);
+
+            // 삭제 이벤트 발행 검증
+            ArgumentCaptor<ActivityDeletedEvent> eventCaptor = ArgumentCaptor.forClass(ActivityDeletedEvent.class);
+            verify(eventPublisher).publishEvent(eventCaptor.capture());
+            ActivityDeletedEvent event = eventCaptor.getValue();
+            assertThat(event.getUserId()).isEqualTo(1L);
+            assertThat(event.getDistance()).isEqualTo(5.0);
         }
 
         @Test
