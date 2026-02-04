@@ -7,6 +7,7 @@
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![Swift](https://img.shields.io/badge/SwiftUI-5-FA7343?logo=swift&logoColor=white)](https://developer.apple.com/xcode/swiftui/)
 [![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)](https://redis.io/)
+[![Coverage](https://img.shields.io/badge/Coverage-62%25-yellow?logo=codecov&logoColor=white)](build/reports/jacoco/test/html/index.html)
 
 > 러닝 활동 기록, 챌린지 참여, 트레이닝 플랜 관리를 제공하는 애플리케이션입니다.
 > 이벤트 기반 비동기 아키텍처와 Redis 캐싱으로 **응답시간 30% 개선**을 달성했습니다.
@@ -460,6 +461,34 @@ CREATE INDEX idx_activities_user_started ON running_activities(user_id, started_
 | N+1 쿼리 (5개 조회 시) | 6개 | 1개 | **-83%** |
 
 > 📄 상세 내용: [docs/PERFORMANCE.md](docs/PERFORMANCE.md)
+
+---
+
+### Phase 6: 테스트 커버리지
+
+**JaCoCo**를 통한 테스트 커버리지 측정 (총 90개 테스트)
+
+| 레이어 | 커버리지 | 설명 |
+|--------|----------|------|
+| **Controller** | 95% | REST API 통합 테스트 |
+| **Service** | 82% | 비즈니스 로직 단위 테스트 |
+| **Domain** | 76% | 엔티티 메서드 테스트 |
+| **Event Listeners** | 46% | 이벤트 핸들러 테스트 |
+| **Config** | 26% | 설정 클래스 (테스트 불필요) |
+| **Scheduler** | 6% | 스케줄러 (통합 테스트 필요) |
+| **전체** | **62%** | - |
+
+**테스트 구성**
+```bash
+./gradlew test jacocoTestReport
+# 리포트: build/reports/jacoco/test/html/index.html
+```
+
+| 테스트 유형 | 개수 | 대상 |
+|------------|------|------|
+| Controller 통합 테스트 | 40+ | `@WebMvcTest` + MockMvc |
+| Service 단위 테스트 | 35+ | `@ExtendWith(MockitoExtension)` |
+| Security 테스트 | 10+ | JWT 인증/인가 검증 |
 
 <br>
 

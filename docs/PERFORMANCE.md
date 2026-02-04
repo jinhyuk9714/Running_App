@@ -13,6 +13,9 @@ Nike Run Club 스타일 러닝 앱의 Spring Boot 백엔드 성능을 단계적�
 | Phase 1 | Baseline | 초기 측정 |
 | Phase 2 | Redis Caching | 응답시간 30% 감소 |
 | Phase 3 | Async Event-Driven | 서비스 결합도 감소, 확장성 향상 |
+| Phase 4 | N+1 Query Fix | 쿼리 수 83% 감소 |
+| Phase 5 | Index Optimization | 쿼리 실행 계획 최적화 |
+| Phase 6 | Test Coverage | 62% 커버리지, 90개 테스트 |
 
 ---
 
@@ -538,6 +541,65 @@ public class RunningActivity { ... }
 
 ---
 
+## Phase 6: 테스트 커버리지
+
+JaCoCo를 사용하여 테스트 커버리지를 측정하고 관리합니다.
+
+### 현재 커버리지 (총 90개 테스트)
+
+| 레이어 | 커버리지 | 설명 |
+|--------|----------|------|
+| Controller | **95%** | REST API 통합 테스트 (MockMvc) |
+| Service | **82%** | 비즈니스 로직 단위 테스트 (Mockito) |
+| Domain | **76%** | 엔티티 메서드 테스트 |
+| Event Listeners | **46%** | 이벤트 핸들러 테스트 |
+| Config | **26%** | 설정 클래스 (테스트 제외 대상) |
+| Scheduler | **6%** | 스케줄러 (통합 테스트 필요) |
+| **전체** | **62%** | - |
+
+### 테스트 유형별 분포
+
+| 테스트 유형 | 개수 | 어노테이션 |
+|------------|------|-----------|
+| Controller 통합 테스트 | 40+ | `@WebMvcTest` |
+| Service 단위 테스트 | 35+ | `@ExtendWith(MockitoExtension)` |
+| Security 테스트 | 10+ | JWT 인증/인가 검증 |
+
+### 커버리지 측정 방법
+
+```bash
+# 테스트 실행 + JaCoCo 리포트 생성
+./gradlew test jacocoTestReport
+
+# 리포트 확인
+open build/reports/jacoco/test/html/index.html
+```
+
+### 커버리지 분석
+
+**높은 커버리지 (80%+)**
+- Controller: API 엔드포인트 전체 테스트 완료
+- Service: 핵심 비즈니스 로직 검증
+
+**중간 커버리지 (40-79%)**
+- Domain: 엔티티 메서드 테스트 (getter/setter 자동 생성 제외)
+- Event Listeners: 이벤트 핸들링 테스트
+
+**낮은 커버리지 (40% 미만)**
+- Config: 설정 클래스는 일반적으로 테스트 제외
+- Scheduler: 시간 기반 테스트의 어려움 (통합 테스트 권장)
+
+### 테스트 품질 지표
+
+| 항목 | 결과 |
+|------|------|
+| 전체 테스트 수 | 90개 |
+| 통과율 | **100%** |
+| 빌드 시간 | ~15초 |
+| 핵심 로직 커버리지 | **82%+** |
+
+---
+
 ## 기술 스택
 
 | 기술 | 용도 |
@@ -550,6 +612,7 @@ public class RunningActivity { ... }
 | K6 | 부하 테스트 |
 | **JOIN FETCH** | **N+1 쿼리 최적화** |
 | **@Index** | **데이터베이스 인덱스** |
+| **JaCoCo** | **테스트 커버리지** |
 
 ---
 
