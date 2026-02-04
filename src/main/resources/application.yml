@@ -1,6 +1,18 @@
 # Spring Boot 설정
 # - datasource: H2 인메모리 DB (개발용, 재시작 시 초기화)
 # - JWT secret: 프로덕션에서는 환경변수로 주입 권장
+
+# =============================================================================
+# HTTP 응답 압축 (Gzip)
+# - 네트워크 전송량 60-80% 감소
+# - 모바일/저속 네트워크 환경에서 성능 향상
+# =============================================================================
+server:
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain,text/css,text/javascript,application/javascript
+    min-response-size: 1024  # 1KB 이상만 압축 (작은 응답은 오버헤드)
+
 spring:
   application:
     name: running-app
