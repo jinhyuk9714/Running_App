@@ -314,34 +314,33 @@ sequenceDiagram
 
 ## ⚡ 성능 최적화
 
-### 최적화 과정
+5단계에 걸쳐 백엔드 성능을 최적화했습니다. K6 부하 테스트(50 VUs, 60초)로 측정했습니다.
 
-| Phase | 적용 기술 | 주요 변경 |
-|-------|----------|----------|
-| **Phase 1** | Baseline | 초기 성능 측정 |
-| **Phase 2** | Redis Caching | 조회 API 캐싱 적용 |
-| **Phase 3** | Event-Driven | 동기 → 비동기 전환 |
-| **Phase 4** | N+1 Query 최적화 | JOIN FETCH, 배치 쿼리 |
-| **Phase 5** | 인덱스 최적화 | 복합 인덱스 11개 추가 |
+---
 
-### K6 부하 테스트 결과 (50 VUs, 60초)
+### Phase 2: Redis 캐싱
 
-| 지표 | Before | After | 개선율 |
-|-----|--------|-------|--------|
-| 평균 응답시간 | 21.94ms | 15.67ms | **-28.6%** |
-| P95 응답시간 | 93.96ms | 75.36ms | **-19.8%** |
-| 에러율 | 59.98% | 0.00% | **-100%** |
+자주 조회되는 데이터에 `@Cacheable` 적용으로 **응답시간 70~86% 단축**
 
-### 엔드포인트별 개선
+| 캐시 키 | TTL | 대상 |
+|--------|-----|------|
+| activitySummary | 5분 | 주간/월간 요약 |
+| activeChallenges | 10분 | 진행중인 챌린지 |
+| plans | 30분 | 플랜 목록 |
+
+**결과**
 
 | Endpoint | Before | After | 개선율 |
 |----------|--------|-------|--------|
 | GET /activities/summary | 7.43ms | 1.01ms | **-86.4%** |
 | GET /challenges | 4.34ms | 1.16ms | **-73.3%** |
-| GET /activities | 6.28ms | 1.55ms | **-75.3%** |
 | GET /plans | 3.87ms | 1.18ms | **-69.5%** |
 
-### 이벤트 기반 아키텍처의 이점
+---
+
+### Phase 3: 이벤트 기반 비동기 아키텍처
+
+활동 저장 시 후처리(레벨/챌린지/플랜 업데이트)를 비동기로 분리하여 **응답시간 95% 단축**
 
 <details>
 <summary>Before/After 비교 다이어그램</summary>
@@ -373,30 +372,92 @@ flowchart LR
 
 </details>
 
-**장점**
-- **느슨한 결합**: 서비스 간 직접 의존성 제거
-- **장애 격리**: 리스너 실패해도 메인 트랜잭션 영향 없음
-- **확장성**: 새 기능은 리스너 추가만으로 구현
-- **재시도**: `@Retryable`로 일시적 실패 자동 복구
+**결과**
 
-### N+1 쿼리 최적화
+| 지표 | Before | After |
+|------|--------|-------|
+| POST /activities 응답시간 | ~100ms | **~5ms** |
+| 서비스 결합도 | 강결합 | **느슨한 결합** |
 
-JPA Lazy Loading으로 인한 N+1 문제를 JOIN FETCH와 배치 쿼리로 해결했습니다.
+**아키텍처 이점**
+- `@Async` + `@TransactionalEventListener`로 비동기 처리
+- `@Retryable`로 일시적 실패 자동 재시도 (3회)
+- 리스너 추가만으로 새 기능 확장 가능
 
-| API | Before | After | 감소율 |
-|-----|--------|-------|--------|
-| GET /challenges/my | 1 + N | **1** | **83%** |
-| GET /challenges/recommended | 1 + N | **2** | **71%** |
-| GET /plans/my | 1 + N | **1** | **83%** |
+---
 
+### Phase 4: N+1 쿼리 최적화
+
+JPA Lazy Loading으로 인한 N+1 문제를 **JOIN FETCH**와 **배치 쿼리**로 해결
+
+**문제 상황**
 ```java
-// Before - N+1 발생
+// Before - N+1 발생: 챌린지 5개 조회 시 6개 쿼리 실행
 List<UserChallenge> findByUserIdOrderByJoinedAtDesc(Long userId);
+// SELECT * FROM user_challenge WHERE user_id = ?  -- 1번
+// SELECT * FROM challenge WHERE id = ?            -- N번 (각 챌린지마다)
+```
 
+**해결 방법**
+```java
 // After - JOIN FETCH로 1개 쿼리
 @Query("SELECT uc FROM UserChallenge uc JOIN FETCH uc.challenge WHERE uc.user.id = :userId")
 List<UserChallenge> findByUserIdWithChallenge(@Param("userId") Long userId);
 ```
+
+**결과**
+
+| API | Before 쿼리 | After 쿼리 | 감소율 |
+|-----|------------|-----------|--------|
+| GET /challenges/my | 1 + N | **1** | **83%** |
+| GET /challenges/recommended | 1 + N | **2** | **71%** |
+| GET /plans/my | 1 + N | **1** | **83%** |
+| 활동 저장 후 플랜 업데이트 | 1 + 4N | **2 + 2N** | **50%** |
+
+---
+
+### Phase 5: 데이터베이스 인덱스 최적화
+
+WHERE, ORDER BY, JOIN 조건에 맞는 **복합 인덱스 11개** 추가로 쿼리 실행 계획 최적화
+
+**추가된 인덱스**
+
+| 테이블 | 인덱스 | 용도 |
+|--------|--------|------|
+| running_activities | (user_id, started_at DESC) | 활동 목록 페이징 |
+| running_activities | (started_at) | 기간별 통계 집계 |
+| user_challenges | (user_id, challenge_id) UNIQUE | 중복 체크 |
+| user_challenges | (user_id, completed_at) | 활성 챌린지 필터 |
+| challenges | (start_date, end_date) | 진행중 챌린지 조회 |
+| user_plans | (user_id, plan_id, completed_at) | 진행 체크 |
+| plan_weeks | (plan_id, week_number) | 주차별 조회 |
+
+**결과**
+
+| 쿼리 유형 | Before | After |
+|----------|--------|-------|
+| 활동 목록 조회 (10만 건) | Full Table Scan O(n) | **Index Scan O(log n)** |
+| 챌린지 중복 체크 | 전체 스캔 | **Index Seek** |
+| 진행중 챌린지 필터 | 전체 스캔 | **Index Range Scan** |
+
+**복합 인덱스 설계 원칙**
+```sql
+-- 좋은 예: 등호 조건(user_id) 먼저 → 정렬(started_at) 나중
+CREATE INDEX idx_activities_user_started ON running_activities(user_id, started_at DESC);
+-- 인덱스만으로 정렬 완료 (filesort 불필요)
+```
+
+---
+
+### 전체 성능 개선 요약
+
+| 지표 | Baseline | 최종 | 개선율 |
+|-----|----------|------|--------|
+| 평균 응답시간 | 21.94ms | 15.67ms | **-28.6%** |
+| P95 응답시간 | 93.96ms | 75.36ms | **-19.8%** |
+| 에러율 | 59.98% | 0.00% | **-100%** |
+| POST /activities | ~100ms | ~5ms | **-95%** |
+| N+1 쿼리 (5개 조회 시) | 6개 | 1개 | **-83%** |
 
 > 📄 상세 내용: [docs/PERFORMANCE.md](docs/PERFORMANCE.md)
 
