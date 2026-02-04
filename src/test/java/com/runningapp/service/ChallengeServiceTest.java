@@ -119,8 +119,8 @@ class ChallengeServiceTest {
             given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
             given(challengeRepository.findActiveByDate(any(LocalDate.class)))
                     .willReturn(List.of(testChallenge));
-            given(userChallengeRepository.existsByUserIdAndChallengeId(1L, 1L))
-                    .willReturn(false);
+            given(userChallengeRepository.findChallengeIdsByUserId(1L))
+                    .willReturn(List.of());  // 참여한 챌린지 없음
 
             // when
             List<ChallengeResponse> result = challengeService.getRecommendedChallenges(1L);
@@ -136,8 +136,8 @@ class ChallengeServiceTest {
             given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
             given(challengeRepository.findActiveByDate(any(LocalDate.class)))
                     .willReturn(List.of(testChallenge));
-            given(userChallengeRepository.existsByUserIdAndChallengeId(1L, 1L))
-                    .willReturn(true);
+            given(userChallengeRepository.findChallengeIdsByUserId(1L))
+                    .willReturn(List.of(1L));  // 이미 참여한 챌린지 ID
 
             // when
             List<ChallengeResponse> result = challengeService.getRecommendedChallenges(1L);
@@ -242,8 +242,8 @@ class ChallengeServiceTest {
         @Test
         @DisplayName("성공 - 내 챌린지 목록 조회")
         void getMyChallenges_success() {
-            // given
-            given(userChallengeRepository.findByUserIdOrderByJoinedAtDesc(1L))
+            // given - JOIN FETCH 쿼리 사용
+            given(userChallengeRepository.findByUserIdWithChallenge(1L))
                     .willReturn(List.of(testUserChallenge));
 
             // when
@@ -261,8 +261,8 @@ class ChallengeServiceTest {
         @Test
         @DisplayName("성공 - 챌린지 진행률 조회")
         void getChallengeProgress_success() {
-            // given
-            given(userChallengeRepository.findByUserIdAndChallengeId(1L, 1L))
+            // given - JOIN FETCH 쿼리 사용
+            given(userChallengeRepository.findByUserIdAndChallengeIdWithChallenge(1L, 1L))
                     .willReturn(Optional.of(testUserChallenge));
 
             // when
@@ -275,8 +275,8 @@ class ChallengeServiceTest {
         @Test
         @DisplayName("실패 - 참여하지 않은 챌린지")
         void getChallengeProgress_notJoined_throwsException() {
-            // given
-            given(userChallengeRepository.findByUserIdAndChallengeId(1L, 999L))
+            // given - JOIN FETCH 쿼리 사용
+            given(userChallengeRepository.findByUserIdAndChallengeIdWithChallenge(1L, 999L))
                     .willReturn(Optional.empty());
 
             // when & then

@@ -98,18 +98,34 @@ public class TrainingPlanService {
         return UserPlanResponse.from(userPlan);
     }
 
-    /** 내 진행 플랜 목록 */
+    /** 내 진행 플랜 목록 - JOIN FETCH로 N+1 해결 */
     public List<UserPlanResponse> getMyPlans(Long userId) {
-        return userPlanRepository.findByUserIdOrderByStartedAtDesc(userId).stream()
+        return userPlanRepository.findByUserIdWithPlan(userId).stream()
                 .map(UserPlanResponse::from)
                 .toList();
     }
 
-    /** 러닝 활동 저장 시 호출 - 진행중인 플랜 주차 진행 체크 */
+    /** 러닝 활동 저장 시 호출 - 진행중인 플랜 주차 진행 체크 (N+1 최적화) */
     @Transactional
     public void updatePlanProgressOnActivity(Long userId, double distance, LocalDateTime activityStartedAt) {
+        // 1. 진행중인 플랜 조회 (Plan JOIN FETCH로 N+1 해결)
         List<UserPlan> activePlans = userPlanRepository.findActiveByUserId(userId);
+        if (activePlans.isEmpty()) return;
+
         LocalDate activityDate = activityStartedAt.toLocalDate();
+
+        // 2. 모든 플랜의 주차 정보를 한 번에 조회 (N+1 해결)
+        List<Long> planIds = activePlans.stream()
+                .map(up -> up.getPlan().getId())
+                .toList();
+        List<PlanWeek> allPlanWeeks = planWeekRepository.findByPlanIds(planIds);
+
+        // 3. planId -> weekNumber -> PlanWeek 맵 구성
+        java.util.Map<Long, java.util.Map<Integer, PlanWeek>> planWeekMap = allPlanWeeks.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        pw -> pw.getPlan().getId(),
+                        java.util.stream.Collectors.toMap(PlanWeek::getWeekNumber, pw -> pw)
+                ));
 
         for (UserPlan userPlan : activePlans) {
             LocalDateTime planStart = userPlan.getStartedAt();
@@ -120,12 +136,10 @@ public class TrainingPlanService {
             if (weekNum != userPlan.getCurrentWeek()) continue;
             if (weekNum > userPlan.getPlan().getTotalWeeks()) continue;
 
-            // 해당 주의 목표 조회
-            List<PlanWeek> weeks = planWeekRepository.findByPlanIdOrderByWeekNumberAsc(userPlan.getPlan().getId());
-            PlanWeek currentPlanWeek = weeks.stream()
-                    .filter(w -> w.getWeekNumber() == weekNum)
-                    .findFirst()
-                    .orElse(null);
+            // 해당 주의 목표 조회 (미리 로드된 맵에서)
+            java.util.Map<Integer, PlanWeek> weekMap = planWeekMap.get(userPlan.getPlan().getId());
+            if (weekMap == null) continue;
+            PlanWeek currentPlanWeek = weekMap.get(weekNum);
             if (currentPlanWeek == null) continue;
 
             // 해당 주의 누적 거리/횟수 계산

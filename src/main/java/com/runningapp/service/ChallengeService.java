@@ -46,9 +46,12 @@ public class ChallengeService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다"));
 
+        // N+1 해결: 참여한 챌린지 ID를 한 번에 조회
+        List<Long> joinedChallengeIds = userChallengeRepository.findChallengeIdsByUserId(userId);
+
         List<Challenge> active = challengeRepository.findActiveByDate(LocalDate.now());
         return active.stream()
-                .filter(c -> !userChallengeRepository.existsByUserIdAndChallengeId(userId, c.getId()))
+                .filter(c -> !joinedChallengeIds.contains(c.getId()))
                 .filter(c -> c.getRecommendedMinLevel() == null || c.getRecommendedMinLevel() <= user.getLevel())
                 .sorted((a, b) -> {
                     // 레벨에 가까운 챌린지 우선 (recommendedMinLevel이 user.level에 가까운 순)
@@ -85,16 +88,16 @@ public class ChallengeService {
         return UserChallengeResponse.from(userChallenge);
     }
 
-    /** 내 참여 챌린지 목록 */
+    /** 내 참여 챌린지 목록 - JOIN FETCH로 N+1 해결 */
     public List<UserChallengeResponse> getMyChallenges(Long userId) {
-        return userChallengeRepository.findByUserIdOrderByJoinedAtDesc(userId).stream()
+        return userChallengeRepository.findByUserIdWithChallenge(userId).stream()
                 .map(UserChallengeResponse::from)
                 .toList();
     }
 
-    /** 챌린지 진행률 조회 */
+    /** 챌린지 진행률 조회 - JOIN FETCH로 N+1 해결 */
     public UserChallengeResponse getChallengeProgress(Long userId, Long challengeId) {
-        UserChallenge userChallenge = userChallengeRepository.findByUserIdAndChallengeId(userId, challengeId)
+        UserChallenge userChallenge = userChallengeRepository.findByUserIdAndChallengeIdWithChallenge(userId, challengeId)
                 .orElseThrow(() -> new NotFoundException("참여한 챌린지를 찾을 수 없습니다"));
         return UserChallengeResponse.from(userChallenge);
     }

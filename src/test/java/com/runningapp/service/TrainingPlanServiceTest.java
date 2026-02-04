@@ -254,8 +254,8 @@ class TrainingPlanServiceTest {
         @Test
         @DisplayName("성공 - 내 플랜 목록 조회")
         void getMyPlans_success() {
-            // given
-            given(userPlanRepository.findByUserIdOrderByStartedAtDesc(1L))
+            // given - JOIN FETCH 쿼리 사용
+            given(userPlanRepository.findByUserIdWithPlan(1L))
                     .willReturn(List.of(testUserPlan));
 
             // when

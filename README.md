@@ -305,6 +305,7 @@ sequenceDiagram
 | **Phase 1** | Baseline | 초기 성능 측정 |
 | **Phase 2** | Redis Caching | 조회 API 캐싱 적용 |
 | **Phase 3** | Event-Driven | 동기 → 비동기 전환 |
+| **Phase 4** | N+1 Query 최적화 | JOIN FETCH, 배치 쿼리 |
 
 ### K6 부하 테스트 결과 (50 VUs, 60초)
 
@@ -355,6 +356,25 @@ flowchart LR
 - **장애 격리**: 리스너 실패해도 메인 트랜잭션 영향 없음
 - **확장성**: 새 기능은 리스너 추가만으로 구현
 - **재시도**: `@Retryable`로 일시적 실패 자동 복구
+
+### N+1 쿼리 최적화
+
+JPA Lazy Loading으로 인한 N+1 문제를 JOIN FETCH와 배치 쿼리로 해결했습니다.
+
+| API | Before | After | 감소율 |
+|-----|--------|-------|--------|
+| GET /challenges/my | 1 + N | **1** | **83%** |
+| GET /challenges/recommended | 1 + N | **2** | **71%** |
+| GET /plans/my | 1 + N | **1** | **83%** |
+
+```java
+// Before - N+1 발생
+List<UserChallenge> findByUserIdOrderByJoinedAtDesc(Long userId);
+
+// After - JOIN FETCH로 1개 쿼리
+@Query("SELECT uc FROM UserChallenge uc JOIN FETCH uc.challenge WHERE uc.user.id = :userId")
+List<UserChallenge> findByUserIdWithChallenge(@Param("userId") Long userId);
+```
 
 > 📄 상세 내용: [docs/PERFORMANCE.md](docs/PERFORMANCE.md)
 

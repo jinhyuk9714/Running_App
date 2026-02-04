@@ -365,6 +365,119 @@ k6 run -e BASE_URL=https://your-server.com k6/load-test.js
 
 ---
 
+## Phase 4: N+1 쿼리 최적화
+
+JPA의 Lazy Loading으로 인한 N+1 문제를 분석하고 해결했습니다.
+
+### N+1 문제란?
+
+```
+Before: 내 챌린지 5개 조회 시
+─────────────────────────────
+SELECT * FROM user_challenge WHERE user_id = ?  -- 1번
+SELECT * FROM challenge WHERE id = ?            -- N번 (각 챌린지마다)
+SELECT * FROM challenge WHERE id = ?
+SELECT * FROM challenge WHERE id = ?
+SELECT * FROM challenge WHERE id = ?
+SELECT * FROM challenge WHERE id = ?
+총 쿼리: 1 + 5 = 6개
+
+After: JOIN FETCH 적용
+─────────────────────────────
+SELECT uc.*, c.* FROM user_challenge uc
+JOIN challenge c ON uc.challenge_id = c.id
+WHERE uc.user_id = ?
+총 쿼리: 1개
+```
+
+### 발견된 N+1 문제
+
+| 함수 | 문제 유형 | Before 쿼리 수 |
+|------|----------|---------------|
+| getMyChallenges() | Lazy Loading in Stream | 1 + N |
+| getChallengeProgress() | Lazy Loading in DTO | 2 |
+| getRecommendedChallenges() | Loop 내 exists 쿼리 | 1 + N |
+| getMyPlans() | Lazy Loading in Stream | 1 + N |
+| updatePlanProgressOnActivity() | Loop 내 다중 쿼리 | 1 + 4N |
+
+### 해결 방법
+
+#### 1. JOIN FETCH 적용
+
+**UserChallengeRepository**
+```java
+// Before
+List<UserChallenge> findByUserIdOrderByJoinedAtDesc(Long userId);
+
+// After - Challenge를 함께 로드
+@Query("SELECT uc FROM UserChallenge uc " +
+       "JOIN FETCH uc.challenge " +
+       "WHERE uc.user.id = :userId ORDER BY uc.joinedAt DESC")
+List<UserChallenge> findByUserIdWithChallenge(@Param("userId") Long userId);
+```
+
+**UserPlanRepository**
+```java
+// Before
+List<UserPlan> findByUserIdOrderByStartedAtDesc(Long userId);
+
+// After - TrainingPlan을 함께 로드
+@Query("SELECT up FROM UserPlan up " +
+       "JOIN FETCH up.plan " +
+       "WHERE up.user.id = :userId ORDER BY up.startedAt DESC")
+List<UserPlan> findByUserIdWithPlan(@Param("userId") Long userId);
+```
+
+#### 2. 배치 쿼리로 변경
+
+**getRecommendedChallenges()**
+```java
+// Before - 각 챌린지마다 exists 쿼리 실행
+active.stream()
+    .filter(c -> !userChallengeRepository.existsByUserIdAndChallengeId(userId, c.getId()))
+
+// After - 참여한 챌린지 ID를 한 번에 조회
+List<Long> joinedIds = userChallengeRepository.findChallengeIdsByUserId(userId);
+active.stream()
+    .filter(c -> !joinedIds.contains(c.getId()))
+```
+
+**updatePlanProgressOnActivity()**
+```java
+// Before - Loop 내에서 PlanWeek 조회
+for (UserPlan userPlan : activePlans) {
+    List<PlanWeek> weeks = planWeekRepository.findByPlanIdOrderByWeekNumberAsc(userPlan.getPlan().getId());
+}
+
+// After - 모든 플랜의 PlanWeek를 한 번에 조회 후 Map으로 그룹핑
+List<Long> planIds = activePlans.stream().map(up -> up.getPlan().getId()).toList();
+List<PlanWeek> allPlanWeeks = planWeekRepository.findByPlanIds(planIds);
+Map<Long, Map<Integer, PlanWeek>> planWeekMap = allPlanWeeks.stream()
+    .collect(Collectors.groupingBy(pw -> pw.getPlan().getId(),
+             Collectors.toMap(PlanWeek::getWeekNumber, pw -> pw)));
+```
+
+### 결과
+
+| 함수 | Before | After | 감소율 |
+|------|--------|-------|--------|
+| getMyChallenges() | 1 + N | **1** | **-N** |
+| getChallengeProgress() | 2 | **1** | **-50%** |
+| getRecommendedChallenges() | 1 + N | **2** | **-(N-1)** |
+| getMyPlans() | 1 + N | **1** | **-N** |
+| updatePlanProgressOnActivity() | 1 + 4N | **2 + 2N** | **-50%** |
+
+### 쿼리 수 예시 (N=5 기준)
+
+| API | Before | After | 감소 |
+|-----|--------|-------|------|
+| GET /challenges/my | 6개 | **1개** | **83%** |
+| GET /challenges/recommended | 7개 | **2개** | **71%** |
+| GET /plans/my | 6개 | **1개** | **83%** |
+| 활동 저장 후 플랜 업데이트 | 21개 | **12개** | **43%** |
+
+---
+
 ## 기술 스택
 
 | 기술 | 용도 |
@@ -375,6 +488,7 @@ k6 run -e BASE_URL=https://your-server.com k6/load-test.js
 | Spring Retry | 재시도 로직 |
 | Spring Scheduling | 스케줄러 |
 | K6 | 부하 테스트 |
+| **JOIN FETCH** | **N+1 쿼리 최적화** |
 
 ---
 
