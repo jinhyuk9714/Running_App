@@ -16,7 +16,8 @@ final class LocationManager: NSObject, ObservableObject {
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyBest
-        manager.distanceFilter = 5  // 5m 간격으로 업데이트
+        manager.distanceFilter = 2  // 2m 간격으로 더 촘촘히 수집
+        manager.activityType = .fitness  // 야외 러닝에 맞는 GPS 최적화
         manager.allowsBackgroundLocationUpdates = true
         manager.pausesLocationUpdatesAutomatically = false
         authorizationStatus = manager.authorizationStatus
@@ -80,7 +81,9 @@ extension LocationManager: CLLocationManagerDelegate {
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let loc = locations.last, loc.horizontalAccuracy >= 0 else { return }
+        guard let loc = locations.last else { return }
+        // 정확도가 나쁜 점(65m 초과)은 경로에 넣지 않아 궤적이 튀지 않게 함
+        if loc.horizontalAccuracy < 0 || loc.horizontalAccuracy > 65 { return }
         if isTracking {
             var newPoints = routePoints
             var newDistance = totalDistance

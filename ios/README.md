@@ -27,12 +27,13 @@
    - **Custom iOS Target Properties** 영역에서 **+** 버튼으로 아래 행을 하나씩 추가
    - **"Custom macOS Target Properties"만 보일 때**: 툴바에서 **Run 대상(Scheme)** 을 **iPhone 15** 등 iOS 시뮬레이터로 바꾼 뒤 Info 탭을 다시 보면 **Custom iOS Target Properties**가 보일 수 있습니다. 또는 Info 탭 안에 **iOS** / **macOS** 구간이 있으면 **iOS** 쪽에 아래 키들을 추가하면 됩니다.
 
-   | Key (키)                                                      | Type   | Value (설명 문구)                             |
-   | ------------------------------------------------------------- | ------ | --------------------------------------------- |
-   | `Privacy - Location When In Use Usage Description`            | String | 러닝 경로 기록을 위해 위치 권한이 필요합니다. |
-   | `Privacy - Location Always and When In Use Usage Description` | String | 백그라운드에서도 러닝 경로를 기록합니다.      |
-   | `Privacy - Health Share Usage Description`                    | String | 심박수·케이던스를 기록에 반영합니다.          |
-   | `Privacy - Health Update Usage Description`                   | String | 러닝 활동을 건강 앱에 저장합니다.             |
+   | Key (키)                                                      | Type   | Value (설명 문구)                              |
+   | ------------------------------------------------------------- | ------ | ---------------------------------------------- |
+   | `Privacy - Location When In Use Usage Description`            | String | 러닝 경로 기록을 위해 위치 권한이 필요합니다.  |
+   | `Privacy - Location Always and When In Use Usage Description` | String | 백그라운드에서도 러닝 경로를 기록합니다.       |
+   | `Privacy - Health Share Usage Description`                    | String | 심박수·케이던스를 기록에 반영합니다.           |
+   | `Privacy - Health Update Usage Description`                   | String | 러닝 활동을 건강 앱에 저장합니다.              |
+   | `Privacy - Motion Usage Description`                          | String | 러닝 중 실시간 케이던스(걸음 수)를 표시합니다. |
 
    **참고**: Xcode Info 탭에서는 위 표의 "Key"가 **Privacy - ...** 로 보입니다. Raw key는 각각 `NSLocationWhenInUseUsageDescription`, `NSLocationAlwaysAndWhenInUseUsageDescription`, `NSHealthShareUsageDescription`, `NSHealthUpdateUsageDescription` 입니다.  
    **직접 Info.plist 파일을 쓰는 경우**: 프로젝트에 `Info.plist` 파일이 있다면 그 파일을 열고 같은 키-값을 `<key>` / `<string>` 로 추가하면 됩니다.

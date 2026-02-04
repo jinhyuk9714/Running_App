@@ -22,7 +22,6 @@
 |--------|-----|
 | **메인 페이지** | https://jinhyuk-portfolio1.shop |
 | **Swagger UI** | https://jinhyuk-portfolio1.shop/swagger-ui/index.html |
-| **API Endpoint** | https://jinhyuk-portfolio1.shop/api/... |
 | **Health Check** | https://jinhyuk-portfolio1.shop/actuator/health |
 | **Prometheus Metrics** | https://jinhyuk-portfolio1.shop/actuator/prometheus |
 

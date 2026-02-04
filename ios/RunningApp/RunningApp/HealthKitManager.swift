@@ -1,12 +1,14 @@
 import Foundation
 import Combine
 import HealthKit
+import CoreMotion
 
-/// 심박수·걸음수(케이던스 추정) 수집
+/// 심박수(HealthKit) + 실시간 케이던스(CMPedometer)
 final class HealthKitManager: ObservableObject {
     private let store = HKHealthStore()
+    private let pedometer = CMPedometer()
     @Published var averageHeartRate: Int?  // bpm
-    @Published var cadence: Int?  // steps/min (SPM)
+    @Published var cadence: Int?  // steps/min (SPM) - 러닝 중 실시간
     @Published var isAuthorized = false
     private var heartRateSamples: [Int] = []
     private var stepCountDuringRun: Int = 0
@@ -33,10 +35,24 @@ final class HealthKitManager: ObservableObject {
         runEnd = nil
         heartRateSamples.removeAll()
         stepCountDuringRun = 0
+        averageHeartRate = nil
+        cadence = nil
+        guard CMPedometer.isStepCountingAvailable() else { return }
+        pedometer.startUpdates(from: startDate) { [weak self] data, _ in
+            guard let self = self, let data = data, let start = self.runStart else { return }
+            let steps = data.numberOfSteps.intValue
+            let elapsedMin = max(1.0, Date().timeIntervalSince(start) / 60.0)
+            let spm = Int(Double(steps) / elapsedMin)
+            DispatchQueue.main.async {
+                self.stepCountDuringRun = steps
+                self.cadence = spm
+            }
+        }
     }
 
     func endRun(at endDate: Date) {
         runEnd = endDate
+        pedometer.stopUpdates()
         queryHeartRate(from: runStart!, to: endDate)
         queryStepCount(from: runStart!, to: endDate)
     }
@@ -62,9 +78,11 @@ final class HealthKitManager: ObservableObject {
         let query = HKStatisticsQuery(quantityType: type, quantitySamplePredicate: predicate, options: .cumulativeSum) { [weak self] _, result, _ in
             let steps = Int(result?.sumQuantity()?.doubleValue(for: .count()) ?? 0)
             DispatchQueue.main.async {
-                self?.stepCountDuringRun = steps
-                let durationMin = max(1, end.timeIntervalSince(start) / 60)
-                self?.cadence = steps / Int(durationMin)  // SPM
+                if steps > 0 {
+                    self?.stepCountDuringRun = steps
+                    let durationMin = max(1, end.timeIntervalSince(start) / 60)
+                    self?.cadence = steps / Int(durationMin)
+                }
             }
         }
         store.execute(query)

@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 import MapKit
 
 /// 나이키 앱처럼: 시작 → 실시간 GPS·지도 → 완료 시 서버 저장
