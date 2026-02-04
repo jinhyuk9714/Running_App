@@ -7,6 +7,7 @@
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![Swift](https://img.shields.io/badge/SwiftUI-5-FA7343?logo=swift&logoColor=white)](https://developer.apple.com/xcode/swiftui/)
 [![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)](https://redis.io/)
+[![Docker](https://img.shields.io/badge/Docker-Alpine-2496ED?logo=docker&logoColor=white)](Dockerfile)
 [![Coverage](https://img.shields.io/badge/Coverage-62%25-yellow?logo=codecov&logoColor=white)](build/reports/jacoco/test/html/index.html)
 
 > 러닝 활동 기록, 챌린지 참여, 트레이닝 플랜 관리를 제공하는 애플리케이션입니다.
@@ -489,6 +490,42 @@ CREATE INDEX idx_activities_user_started ON running_activities(user_id, started_
 | Controller 통합 테스트 | 40+ | `@WebMvcTest` + MockMvc |
 | Service 단위 테스트 | 35+ | `@ExtendWith(MockitoExtension)` |
 | Security 테스트 | 10+ | JWT 인증/인가 검증 |
+
+---
+
+### Phase 7: Docker 이미지 최적화
+
+멀티스테이지 빌드와 Alpine 이미지로 **이미지 크기 47% 감소**
+
+**적용 기술**
+
+| 기술 | 효과 |
+|------|------|
+| **Alpine 베이스 이미지** | jammy(Ubuntu) → alpine으로 크기 절감 |
+| **Layered JAR** | 의존성 레이어 분리로 빌드 캐시 효율화 |
+| **JVM 컨테이너 최적화** | `MaxRAMPercentage=75%`, G1GC |
+| **.dockerignore** | frontend/, ios/ 등 제외로 빌드 컨텍스트 감소 |
+
+**이미지 크기 비교**
+
+| 이미지 | Before | After | 감소율 |
+|--------|--------|-------|--------|
+| 베이스 (JRE) | 274MB (jammy) | 146MB (alpine) | **-47%** |
+| 최종 이미지 | ~350MB | ~220MB | **-37%** |
+
+**Layered JAR 캐싱 효과**
+
+```dockerfile
+# 변경 빈도 낮은 순서대로 복사 → 소스 변경 시 application 레이어만 재빌드
+COPY --from=build /app/extracted/dependencies/ ./       # 거의 변경 안 됨
+COPY --from=build /app/extracted/spring-boot-loader/ ./  # 거의 변경 안 됨
+COPY --from=build /app/extracted/snapshot-dependencies/ ./
+COPY --from=build /app/extracted/application/ ./         # 소스 변경 시만 재빌드
+```
+
+**빌드 시간 개선** (소스만 변경 시)
+- Before: 전체 JAR 복사 (~45초)
+- After: application 레이어만 (~5초)
 
 <br>
 

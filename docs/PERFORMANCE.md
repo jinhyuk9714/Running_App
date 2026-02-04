@@ -16,6 +16,7 @@ Nike Run Club 스타일 러닝 앱의 Spring Boot 백엔드 성능을 단계적�
 | Phase 4 | N+1 Query Fix | 쿼리 수 83% 감소 |
 | Phase 5 | Index Optimization | 쿼리 실행 계획 최적화 |
 | Phase 6 | Test Coverage | 62% 커버리지, 90개 테스트 |
+| Phase 7 | Docker Optimization | 이미지 크기 47% 감소 |
 
 ---
 
@@ -600,6 +601,105 @@ open build/reports/jacoco/test/html/index.html
 
 ---
 
+## Phase 7: Docker 이미지 최적화
+
+컨테이너 이미지 크기를 줄이고 빌드 캐싱을 최적화했습니다.
+
+### 적용 기술
+
+| 기술 | 설명 | 효과 |
+|------|------|------|
+| **Alpine 베이스 이미지** | `eclipse-temurin:17-jre-alpine` | 이미지 크기 47% 감소 |
+| **Layered JAR** | Spring Boot 레이어 분리 | 빌드 캐시 효율화 |
+| **JVM 컨테이너 최적화** | `UseContainerSupport`, `MaxRAMPercentage` | 메모리 효율화 |
+| **.dockerignore 확장** | frontend/, ios/, docs/ 제외 | 빌드 컨텍스트 감소 |
+
+### 이미지 크기 비교
+
+| 항목 | Before | After | 감소율 |
+|------|--------|-------|--------|
+| 베이스 이미지 (JRE) | 274MB (jammy) | 146MB (alpine) | **-47%** |
+| 최종 이미지 | ~350MB | ~220MB | **-37%** |
+
+### Layered JAR 구조
+
+Spring Boot의 Layered JAR을 활용하여 Docker 레이어 캐싱을 최적화합니다.
+
+```dockerfile
+# 빌드 스테이지에서 레이어 추출
+RUN java -Djarmode=layertools -jar build/libs/*.jar extract --destination extracted
+
+# 런타임 스테이지에서 변경 빈도 낮은 순서대로 복사
+COPY --from=build /app/extracted/dependencies/ ./         # 1. 외부 라이브러리 (거의 변경 안 됨)
+COPY --from=build /app/extracted/spring-boot-loader/ ./   # 2. 스프링 부트 로더
+COPY --from=build /app/extracted/snapshot-dependencies/ ./ # 3. 스냅샷 의존성
+COPY --from=build /app/extracted/application/ ./          # 4. 애플리케이션 코드 (자주 변경)
+```
+
+### 캐싱 효과
+
+소스 코드만 변경된 경우:
+
+| 단계 | 캐시 상태 |
+|------|----------|
+| dependencies | **HIT** (재사용) |
+| spring-boot-loader | **HIT** (재사용) |
+| snapshot-dependencies | **HIT** (재사용) |
+| application | **MISS** (재빌드) |
+
+결과: 전체 JAR 복사 대비 **빌드 시간 80% 단축**
+
+### JVM 컨테이너 최적화 옵션
+
+```dockerfile
+ENTRYPOINT ["java", \
+    "-XX:+UseContainerSupport",      # 컨테이너 메모리/CPU 제한 인식
+    "-XX:MaxRAMPercentage=75.0",     # 컨테이너 메모리의 75% 사용
+    "-XX:+UseG1GC",                  # G1 가비지 컬렉터 (낮은 지연시간)
+    "-XX:+UseStringDeduplication",   # 문자열 중복 제거 (메모리 절약)
+    "-Djava.security.egd=file:/dev/./urandom",  # 빠른 난수 생성
+    "org.springframework.boot.loader.launch.JarLauncher"]
+```
+
+### docker-compose.yml 리소스 제한
+
+```yaml
+services:
+  app:
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+
+  redis:
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  postgres:
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+```
+
+### 빌드 및 실행
+
+```bash
+# 이미지 빌드
+docker build -t running-app:latest .
+
+# 이미지 크기 확인
+docker images running-app:latest
+
+# docker-compose로 전체 스택 실행
+docker-compose up --build
+```
+
+---
+
 ## 기술 스택
 
 | 기술 | 용도 |
@@ -613,6 +713,9 @@ open build/reports/jacoco/test/html/index.html
 | **JOIN FETCH** | **N+1 쿼리 최적화** |
 | **@Index** | **데이터베이스 인덱스** |
 | **JaCoCo** | **테스트 커버리지** |
+| **Docker Multi-stage** | **이미지 최적화** |
+| **Alpine Linux** | **경량 베이스 이미지** |
+| **Layered JAR** | **빌드 캐시 최적화** |
 
 ---
 
@@ -621,3 +724,5 @@ open build/reports/jacoco/test/html/index.html
 - [Spring Events](https://docs.spring.io/spring-framework/reference/core/beans/context-introduction.html#context-functionality-events)
 - [Spring Cache Abstraction](https://docs.spring.io/spring-framework/reference/integration/cache.html)
 - [K6 Documentation](https://k6.io/docs/)
+- [Spring Boot Docker Layers](https://docs.spring.io/spring-boot/docs/current/reference/html/container-images.html#container-images.dockerfiles)
+- [Docker Multi-stage Builds](https://docs.docker.com/build/building/multi-stage/)

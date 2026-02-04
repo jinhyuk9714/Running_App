@@ -2,20 +2,49 @@
 .git
 .gitignore
 
-# Build output
+# Build outputs (빌드 컨텍스트 크기 감소)
 build/
+out/
+target/
+
+# Gradle cache
+.gradle/
 
 # IDE
-.idea
+.idea/
 *.iml
-.vscode
+.vscode/
 
-# Docs (optional - exclude to reduce image build context)
-# docs/
+# Frontend (백엔드 이미지에 불필요)
+frontend/
 
-# OS
+# iOS (백엔드 이미지에 불필요)
+ios/
+
+# Test files (bootJar에 포함되지 않음)
+src/test/
+
+# Documentation
+docs/
+*.md
+
+# K6 load test
+k6/
+
+# Local configs
+.env
+.env.*
+*.local
+
+# OS files
 .DS_Store
+Thumbs.db
 
-# Test (Docker build 시 테스트 제외로 이미 적용되어 있으나, context에서 제외하여 복사량 감소)
-# src/test는 빌드에 필요할 수 있음 - bootJar는 main만 포함하므로 test 제외해도 됨
-# 실제로 -x test로 테스트는 스킵하므로 src 전체 복사해도 됨
+# Logs
+*.log
+*.tmp
+
+# Claude Code
+CLAUDE.md
+.claude/
+bin/
