@@ -11,7 +11,16 @@ import java.time.LocalDateTime;
  * 사용자가 챌린지에 참여하고 진행률을 추적
  */
 @Entity
-@Table(name = "user_challenges")
+@Table(name = "user_challenges", indexes = {
+    // 사용자별 참여 목록 조회
+    @Index(name = "idx_user_challenges_user_joined", columnList = "user_id, joined_at DESC"),
+    // 사용자+챌린지 중복 체크 및 진행률 조회 (UNIQUE 제약)
+    @Index(name = "idx_user_challenges_user_challenge", columnList = "user_id, challenge_id", unique = true),
+    // 활성 챌린지 필터링 (completedAt IS NULL)
+    @Index(name = "idx_user_challenges_user_completed", columnList = "user_id, completed_at"),
+    // 챌린지 만료 처리
+    @Index(name = "idx_user_challenges_challenge_completed", columnList = "challenge_id, completed_at")
+})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

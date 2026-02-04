@@ -12,7 +12,12 @@ import java.time.LocalDateTime;
  * 진행중인 챌린지 목록: start_date <= today <= end_date
  */
 @Entity
-@Table(name = "challenges")
+@Table(name = "challenges", indexes = {
+    // 활성 챌린지 조회 (start_date <= today <= end_date)
+    @Index(name = "idx_challenges_dates", columnList = "start_date, end_date"),
+    // 만료 챌린지 배치 처리
+    @Index(name = "idx_challenges_end_date", columnList = "end_date")
+})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

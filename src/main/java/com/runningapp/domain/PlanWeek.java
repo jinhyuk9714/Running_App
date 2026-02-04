@@ -7,7 +7,10 @@ import lombok.*;
  * 플랜별 주차별 스케줄
  */
 @Entity
-@Table(name = "plan_weeks")
+@Table(name = "plan_weeks", indexes = {
+    // 플랜별 주차 조회 (정렬 포함)
+    @Index(name = "idx_plan_weeks_plan_week", columnList = "plan_id, week_number")
+})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

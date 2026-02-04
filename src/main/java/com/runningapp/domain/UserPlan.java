@@ -11,7 +11,14 @@ import java.time.LocalDateTime;
  * 사용자가 플랜을 시작하고 진행률 추적
  */
 @Entity
-@Table(name = "user_plans")
+@Table(name = "user_plans", indexes = {
+    // 사용자별 플랜 목록 조회
+    @Index(name = "idx_user_plans_user_started", columnList = "user_id, started_at DESC"),
+    // 진행중인 플랜 필터링 + 중복 체크
+    @Index(name = "idx_user_plans_user_plan_completed", columnList = "user_id, plan_id, completed_at"),
+    // 활성 플랜 필터링
+    @Index(name = "idx_user_plans_user_completed", columnList = "user_id, completed_at")
+})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

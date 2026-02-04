@@ -13,7 +13,10 @@ import java.util.List;
  * 5K, 10K, 하프마라톤 목표별 주차별 러닝 스케줄
  */
 @Entity
-@Table(name = "training_plans")
+@Table(name = "training_plans", indexes = {
+    // 목표별/난이도별 필터링
+    @Index(name = "idx_training_plans_goal_difficulty", columnList = "goal_type, difficulty")
+})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

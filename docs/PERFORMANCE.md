@@ -478,6 +478,66 @@ Map<Long, Map<Integer, PlanWeek>> planWeekMap = allPlanWeeks.stream()
 
 ---
 
+## Phase 5: 데이터베이스 인덱스 최적화
+
+자주 사용되는 쿼리의 WHERE, ORDER BY, JOIN 조건에 맞는 인덱스를 추가했습니다.
+
+### 추가된 인덱스
+
+| 테이블 | 인덱스명 | 컬럼 | 용도 |
+|--------|---------|------|------|
+| running_activities | idx_running_activities_user_started | user_id, started_at DESC | 활동 목록 페이징 |
+| running_activities | idx_running_activities_started | started_at | 기간별 통계 |
+| user_challenges | idx_user_challenges_user_joined | user_id, joined_at DESC | 참여 목록 조회 |
+| user_challenges | idx_user_challenges_user_challenge | user_id, challenge_id (UNIQUE) | 중복 체크 |
+| user_challenges | idx_user_challenges_user_completed | user_id, completed_at | 활성 챌린지 |
+| challenges | idx_challenges_dates | start_date, end_date | 진행중 챌린지 |
+| user_plans | idx_user_plans_user_started | user_id, started_at DESC | 플랜 목록 |
+| user_plans | idx_user_plans_user_plan_completed | user_id, plan_id, completed_at | 진행 체크 |
+| plan_weeks | idx_plan_weeks_plan_week | plan_id, week_number | 주차별 조회 |
+| training_plans | idx_training_plans_goal_difficulty | goal_type, difficulty | 필터링 |
+
+### 인덱스 적용 방법
+
+JPA `@Table` 어노테이션의 `indexes` 속성 사용:
+
+```java
+@Entity
+@Table(name = "running_activities", indexes = {
+    @Index(name = "idx_running_activities_user_started",
+           columnList = "user_id, started_at DESC"),
+    @Index(name = "idx_running_activities_started",
+           columnList = "started_at")
+})
+public class RunningActivity { ... }
+```
+
+### 쿼리 실행 계획 개선 (예상)
+
+| 쿼리 | Before | After |
+|------|--------|-------|
+| 활동 목록 (10만 건) | Full Table Scan O(n) | Index Scan O(log n) |
+| 사용자별 챌린지 | Full Table Scan | Index Seek |
+| 진행중 챌린지 | Full Table Scan | Index Range Scan |
+
+### 복합 인덱스 설계 원칙
+
+1. **등호 조건 먼저**: WHERE user_id = ? → user_id가 첫 번째
+2. **범위/정렬 나중에**: ORDER BY started_at → started_at이 두 번째
+3. **카디널리티 고려**: 선택도가 높은 컬럼 우선
+
+```
+좋은 예: (user_id, started_at DESC)
+- user_id로 필터링 후 started_at으로 정렬
+- 인덱스만으로 정렬 완료 (filesort 불필요)
+
+나쁜 예: (started_at DESC, user_id)
+- 전체 started_at 정렬 후 user_id 필터
+- 불필요한 데이터 스캔
+```
+
+---
+
 ## 기술 스택
 
 | 기술 | 용도 |
@@ -489,6 +549,7 @@ Map<Long, Map<Integer, PlanWeek>> planWeekMap = allPlanWeeks.stream()
 | Spring Scheduling | 스케줄러 |
 | K6 | 부하 테스트 |
 | **JOIN FETCH** | **N+1 쿼리 최적화** |
+| **@Index** | **데이터베이스 인덱스** |
 
 ---
 

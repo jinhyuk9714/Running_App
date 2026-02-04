@@ -16,7 +16,12 @@ import java.util.Map;
  * @JdbcTypeCode(JSON): Hibernate 6+ 에서 JSON 타입 매핑 (GPS 경로 저장)
  */
 @Entity
-@Table(name = "running_activities")
+@Table(name = "running_activities", indexes = {
+    // 사용자별 활동 목록 조회 (페이징) - 가장 자주 사용
+    @Index(name = "idx_running_activities_user_started", columnList = "user_id, started_at DESC"),
+    // 기간별 통계 조회
+    @Index(name = "idx_running_activities_started", columnList = "started_at")
+})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

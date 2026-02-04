@@ -306,6 +306,7 @@ sequenceDiagram
 | **Phase 2** | Redis Caching | 조회 API 캐싱 적용 |
 | **Phase 3** | Event-Driven | 동기 → 비동기 전환 |
 | **Phase 4** | N+1 Query 최적화 | JOIN FETCH, 배치 쿼리 |
+| **Phase 5** | 인덱스 최적화 | 복합 인덱스 11개 추가 |
 
 ### K6 부하 테스트 결과 (50 VUs, 60초)
 
