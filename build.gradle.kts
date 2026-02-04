@@ -45,6 +45,9 @@ dependencies {
     // Swagger/OpenAPI: /swagger-ui.html
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0")
 
+    // Rate Limiting: Bucket4j (Token Bucket 알고리즘)
+    implementation("com.bucket4j:bucket4j-core:8.10.1")
+
     // Lombok: @Getter, @Builder 등 보일러플레이트 제거
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")

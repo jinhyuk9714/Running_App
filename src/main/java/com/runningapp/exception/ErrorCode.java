@@ -41,7 +41,10 @@ public enum ErrorCode {
 
     // COMMON (공통)
     COMMON_001("COMMON_001", "입력값 검증 실패", HttpStatus.BAD_REQUEST),
-    COMMON_002("COMMON_002", "서버 내부 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
+    COMMON_002("COMMON_002", "서버 내부 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR),
+
+    // RATE_LIMIT (요청 제한)
+    RATE_LIMIT_001("RATE_LIMIT_001", "요청 한도를 초과했습니다", HttpStatus.TOO_MANY_REQUESTS);
 
     private final String code;
     private final String message;

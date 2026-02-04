@@ -28,3 +28,8 @@ spring:
 jwt:
   secret: test-secret-key-for-jwt-token-generation-minimum-256-bits-long
   expiration-ms: 86400000
+
+# 테스트에서는 Rate Limit 비활성화
+app:
+  rate-limit:
+    enabled: false

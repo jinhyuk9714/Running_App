@@ -72,6 +72,16 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(ErrorCode.COMMON_001, errors));
     }
 
+    /** 429 Too Many Requests - Rate Limit 초과 */
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ErrorResponse> handleRateLimitExceeded(RateLimitExceededException e) {
+        log.warn("Rate limit exceeded: {}", e.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(ErrorResponse.of(ErrorCode.RATE_LIMIT_001, e.getMessage()));
+    }
+
     /** 500 Internal Server Error - 기타 모든 예외 */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleException(Exception e) {

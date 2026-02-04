@@ -18,6 +18,7 @@ Nike Run Club 스타일 러닝 앱의 Spring Boot 백엔드 성능을 단계적�
 | Phase 6 | Test Coverage | 62% 커버리지, 90개 테스트 |
 | Phase 7 | Docker Optimization | 이미지 크기 47% 감소 |
 | Phase 8 | CI/CD Pipeline | 빌드 캐싱, 병렬 실행 |
+| Phase 9 | Rate Limiting | 보안 강화, 브루트포스 방지 |
 
 ---
 
@@ -811,6 +812,105 @@ tasks.withType<Test> {
 
 ---
 
+## Phase 9: Rate Limiting (보안)
+
+API 요청 제한을 통해 브루트포스 공격과 DDoS를 방지합니다.
+
+### Token Bucket 알고리즘
+
+Bucket4j 라이브러리를 사용한 Token Bucket 알고리즘 구현:
+
+```
+┌─────────────────────────────────────────────────┐
+│                  Token Bucket                   │
+│  ┌─────────────────────────────────────────┐   │
+│  │  [●] [●] [●] [●] [●] [○] [○] [○]       │   │
+│  │     사용됨 ←──────────→ 남은 토큰       │   │
+│  └─────────────────────────────────────────┘   │
+│                     ↑                           │
+│              일정 속도로 토큰 충전              │
+└─────────────────────────────────────────────────┘
+```
+
+- 요청 시 토큰 1개 소비
+- 토큰 부족 시 429 Too Many Requests 반환
+- 시간이 지나면 자동으로 토큰 충전
+
+### 엔드포인트별 Rate Limit
+
+| 엔드포인트 | 용량 | 충전 속도 | 용도 |
+|-----------|------|----------|------|
+| `POST /api/auth/login` | 15 | 10/분 | 브루트포스 공격 방지 |
+| `POST /api/auth/signup` | 10 | 5/시간 | 스팸 계정 생성 방지 |
+| 기타 API | 120 | 100/분 | 일반 사용 |
+
+### 구현 구조
+
+```java
+@Component
+public class RateLimitInterceptor implements HandlerInterceptor {
+    @Override
+    public boolean preHandle(HttpServletRequest request, ...) {
+        String clientIp = getClientIp(request);
+        Bucket bucket = selectBucket(clientIp, path, method);
+
+        ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);
+        response.addHeader("X-Rate-Limit-Remaining", String.valueOf(probe.getRemainingTokens()));
+
+        if (!probe.isConsumed()) {
+            throw new RateLimitExceededException(...);
+        }
+        return true;
+    }
+}
+```
+
+### 응답 헤더
+
+```http
+HTTP/1.1 200 OK
+X-Rate-Limit-Remaining: 95
+
+# 제한 초과 시
+HTTP/1.1 429 Too Many Requests
+X-Rate-Limit-Remaining: 0
+X-Rate-Limit-Retry-After-Seconds: 30
+```
+
+### 에러 응답 (429)
+
+```json
+{
+  "code": "RATE_LIMIT_001",
+  "message": "요청 한도를 초과했습니다. 30초 후에 다시 시도해주세요.",
+  "errors": null,
+  "timestamp": "2024-01-01T12:00:00"
+}
+```
+
+### 보안 효과
+
+| 공격 유형 | 방어 방법 |
+|----------|----------|
+| 브루트포스 로그인 | 분당 10회 제한으로 비밀번호 추측 공격 차단 |
+| 스팸 계정 생성 | 시간당 5회 제한으로 대량 계정 생성 방지 |
+| API 남용 | 분당 100회 제한으로 과도한 요청 차단 |
+
+### 프록시 환경 지원
+
+```java
+private String getClientIp(HttpServletRequest request) {
+    // Nginx, Load Balancer 등 프록시 환경 지원
+    String xForwardedFor = request.getHeader("X-Forwarded-For");
+    if (xForwardedFor != null) {
+        return xForwardedFor.split(",")[0].trim();
+    }
+    return request.getRemoteAddr();
+}
+```
+
+---
+
 ## 기술 스택
 
 | 기술 | 용도 |
@@ -829,6 +929,8 @@ tasks.withType<Test> {
 | **Layered JAR** | **빌드 캐시 최적화** |
 | **GitHub Actions** | **CI/CD 파이프라인** |
 | **Gradle 병렬 테스트** | **테스트 시간 단축** |
+| **Bucket4j** | **Rate Limiting** |
+| **Token Bucket** | **요청 제한 알고리즘** |
 
 ---
 
