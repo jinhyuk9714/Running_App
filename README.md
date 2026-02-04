@@ -66,6 +66,9 @@
 
 ## 🏗 시스템 아키텍처
 
+<details>
+<summary>아키텍처 다이어그램 보기</summary>
+
 ```mermaid
 flowchart TB
     subgraph Client["Client Layer"]
@@ -122,9 +125,14 @@ flowchart TB
     Schedulers --> Services
 ```
 
+</details>
+
 <br>
 
 ## 📊 ERD (Entity Relationship Diagram)
+
+<details>
+<summary>ERD 다이어그램 보기</summary>
 
 ```mermaid
 erDiagram
@@ -216,11 +224,14 @@ erDiagram
     TRAINING_PLAN ||--o{ USER_PLAN : "has enrollments"
 ```
 
+</details>
+
 <br>
 
 ## 🔄 시퀀스 다이어그램
 
-### 활동 저장 (이벤트 기반 비동기 처리)
+<details>
+<summary>활동 저장 (이벤트 기반 비동기 처리)</summary>
 
 ```mermaid
 sequenceDiagram
@@ -257,7 +268,10 @@ sequenceDiagram
     end
 ```
 
-### 인증 흐름 (JWT)
+</details>
+
+<details>
+<summary>인증 흐름 (JWT)</summary>
 
 ```mermaid
 sequenceDiagram
@@ -294,6 +308,8 @@ sequenceDiagram
     end
 ```
 
+</details>
+
 <br>
 
 ## ⚡ 성능 최적화
@@ -327,6 +343,9 @@ sequenceDiagram
 
 ### 이벤트 기반 아키텍처의 이점
 
+<details>
+<summary>Before/After 비교 다이어그램</summary>
+
 ```mermaid
 flowchart LR
     subgraph Before["Before (동기) ~100ms"]
@@ -351,6 +370,8 @@ flowchart LR
         A3 -.->|Async| A7[Plan Listener]
     end
 ```
+
+</details>
 
 **장점**
 - **느슨한 결합**: 서비스 간 직접 의존성 제거
