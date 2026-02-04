@@ -1,6 +1,10 @@
 # 프로덕션 환경 (NCP, AWS 등 - RDS/Cloud DB PostgreSQL 연결)
 # 환경변수로 주입: SPRING_DATASOURCE_URL, SPRING_DATASOURCE_USERNAME, SPRING_DATASOURCE_PASSWORD, JWT_SECRET
 spring:
+  # 캐시 설정: Redis가 없으면 인메모리 캐시 사용
+  # Redis 사용 시: type: redis, data.redis.host/port 설정
+  cache:
+    type: ${SPRING_CACHE_TYPE:simple}
   datasource:
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
